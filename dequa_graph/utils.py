@@ -53,6 +53,9 @@ def add_waterbus_to_street(graph, path_gtfs):
     # add normal dates as graph property
     normal_dates = graph.new_gp("python::object")
     graph.gp.normal_dates = normal_dates
+    # add last normal date as graph property
+    normal_dates = graph.new_gp("string")
+    graph.gp.normal_dates = ""
     # add special dates as graph property
     special_dates = graph.new_gp("python::object")
     graph.gp.special_dates = special_dates
@@ -69,6 +72,7 @@ def add_waterbus_to_street(graph, path_gtfs):
     # create edge properties for special dates
     special_dates_dict = {}
     normal_dates_dict = {}
+    last_normal_date = ""
     for feed in feeds:
         unique_special_dates = []
         if feed.calendar_dates is not None:
@@ -81,8 +85,11 @@ def add_waterbus_to_street(graph, path_gtfs):
         end_date = pd.to_datetime(gtfs.get_end_date(feed)).date()
         key_for_date = f"{start_date.strftime('%Y-%m-%d')}_{end_date.strftime('%Y-%m-%d')}"
         for normal_date in daterange(start_date, end_date):
-            normal_date_key = pd.to_datetime(normal_date).date()
-            normal_dates_dict[normal_date_key] = key_for_date
+            if normal_date not in unique_special_dates:
+                normal_date_key = pd.to_datetime(normal_date).date()
+                normal_dates_dict[normal_date_key] = key_for_date
+        # save the last normal date (is updated in every loop)
+        last_normal_date = key_for_date
     # add edge properties for special dates
     for special_date_val in special_dates_dict.values():
         graph.edge_properties[special_date_val] = graph.new_ep("vector<int>")
@@ -93,6 +100,8 @@ def add_waterbus_to_street(graph, path_gtfs):
     graph.gp.special_dates = special_dates_dict
     # add all normal dates in the graph property
     graph.gp.normal_dates = normal_dates_dict
+    # add the last normal date in the graph property
+    graph.gp.last_normal_date = last_normal_date
 
     for feed in feeds:
         missing_stops = gtfs.check_stops_coordinates(feed, pos)
@@ -161,7 +170,11 @@ def add_route_vertex_and_edge(graph, graph_orig, pos, feed, stop_id, row):
     time_info = gtfs.get_stop_times_from_stop_route(feed, stop_id, row["route_id"])
     # graph.ep.timetable[e] = time_info[["service_id", "departure_time"]]
     normal_dates, exception_dates = gtfs.convert_departure_to_array(time_info, feed)
-    timetable_edge_property = graph.gp.normal_dates[pd.to_datetime(gtfs.get_start_date(feed)).date()]
+    # get a normal date looking in the calendar and looping until we a date that is not special
+    a_normal_date = pd.to_datetime(gtfs.get_start_date(feed)).date()
+    while a_normal_date not in graph.gp.normal_dates.keys():
+        a_normal_date += timedelta(days=1)
+    timetable_edge_property = graph.gp.normal_dates[a_normal_date]
     graph.ep[timetable_edge_property][e] = normal_dates
     # old code: {'standard': normal_dates} # | exception_dates  # merge two dictionaries
     for exception_date_key, values in exception_dates.items():

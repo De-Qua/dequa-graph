@@ -254,8 +254,11 @@ def get_timetables(graph, date):
     elif actual_date in graph.gp.special_dates.keys():
         # check if today is special
         timet = graph.ep[graph.gp.special_dates[actual_date]]
+    elif actual_date in graph.gp.normal_dates.keys():
+        # otherwise is a standard day and we have the feed
+        timet = graph.ep[graph.gp.normal_dates[actual_date]]
     else:
-        # otherwise is a standard day
-        timet = graph.ep.timetable
+        # is a day in the future and we don't have the feed
+        timet = graph.ep[graph.gp.last_normal_date]
 
     return timet

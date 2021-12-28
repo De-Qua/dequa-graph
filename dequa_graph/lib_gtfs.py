@@ -343,3 +343,64 @@ def get_shape_between_stops(feed, shape_id, stop_id_x, stop_id_y):
     except IndexError:
         geometry = sg.LineString()
     return geometry
+
+
+def restrict_feed_to_dates(feed, start_date=None, end_date=None):
+    if start_date is None:
+        start_date = feed.calendar.start_date.min()
+    if end_date is None:
+        end_date = feed.calendar.end_date.max()
+    # check active service id
+    duration_in_days = (end_date - start_date).days + 1
+    if duration_in_days < 7:
+        starting_day = start_date.day_of_week
+        included_days = np.arange(start=starting_day, stop=starting_day+duration_in_days) % 7
+        excluded_days = [day for idx, day in enumerate(WEEKDAYS) if idx not in included_days]
+        feed.calendar.loc[:, excluded_days] = 0
+        feed.calendar = feed.calendar.loc[~(feed.calendar.loc[:, WEEKDAYS] == 0).all(axis=1)]
+    feed.calendar.start_date = start_date
+    feed.calendar.end_date = end_date
+    special_services = []
+    if feed.calendar_dates:
+        feed.calendar_dates = feed.calendar_dates.loc[(feed.calendar_dates.date >= start_date) & (feed.calendar_dates.date <= end_date)]
+        special_services = feed.calendar_dates.service_id.values
+    feed.trips = feed.trips.loc[(feed.trips.service_id.isin(feed.calendar.service_id)) | (feed.trips.service_id.isin(special_services))]
+    feed.stop_times = feed.stop_times.loc[feed.stop_times.trip_id.isin(feed.trips.trip_id)]
+    feed.routes = feed.routes.loc[feed.routes.route_id.isin(feed.trips.route_id)]
+
+    return feed
+
+
+def get_start_date(feed):
+    return feed.calendar.start_date.min()
+
+
+def get_end_date(feed):
+    return feed.calendar.end_date.max()
+
+
+def get_start_end_dates(feed):
+    return get_start_date(feed), get_end_date(feed)
+
+
+def load_multiple_feeds(*paths):
+    feeds = [load_feed(path) for path in paths]
+    if len(feeds) == 1:
+        return feeds
+    # sort feed by start date
+    dates = np.array([get_start_end_dates(feed) for feed in feeds])
+    sort_idx = dates[:, 0].argsort()
+    feeds = [feeds[idx] for idx in sort_idx]
+    # check if dates overlaps, in case restrict the oldest feed
+    restricted_feeds = []
+    for idx in range(len(feeds)-1):
+        feed_1 = feeds[idx]
+        feed_2 = feeds[idx+1]
+        if get_end_date(feed_1) >= get_start_date(feed_2):
+            end_date = get_start_date(feed_2) - timedelta(days=1)
+            new_feed = restrict_feed_to_dates(feed_1, end_date=end_date)
+            if not new_feed.calendar.empty:
+                restricted_feeds.append(new_feed)
+        else:
+            restricted_feeds.append(feed_1)
+    return restricted_feeds

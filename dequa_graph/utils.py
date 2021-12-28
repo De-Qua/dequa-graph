@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+from datetime import timedelta
 from itertools import groupby
 from shapely.geometry import LineString
 from shapely.ops import transform
@@ -28,6 +29,8 @@ def load_graphs(*paths_gt_graphs):
 
 def add_waterbus_to_street(graph, path_gtfs):
     """Add gtfs vertices and edges to graph"""
+    if type(path_gtfs) is str:
+        path_gtfs = [path_gtfs]
     # ipdb.set_trace()
     # add transport stop boolean vertex property
     transport_stop = graph.new_vp("bool")
@@ -47,6 +50,9 @@ def add_waterbus_to_street(graph, path_gtfs):
     # add duration edge property
     duration = graph.new_ep("double")
     graph.ep.duration = duration
+    # add normal dates as graph property
+    normal_dates = graph.new_gp("python::object")
+    graph.gp.normal_dates = normal_dates
     # add special dates as graph property
     special_dates = graph.new_gp("python::object")
     graph.gp.special_dates = special_dates
@@ -58,49 +64,67 @@ def add_waterbus_to_street(graph, path_gtfs):
     g_orig = gt.GraphView(graph, vfilt=lambda v: not transport_stop[v])
     pos = get_all_coordinates(g_orig)
     # load feed gtfs
-    feed = gtfs.load_feed(path_gtfs)
+    # feed = gtfs.load_feed(path_gtfs[0])
+    feeds = gtfs.load_multiple_feeds(*path_gtfs)
     # create edge properties for special dates
-    unique_special_dates = []
     special_dates_dict = {}
-    if feed.calendar_dates is not None:
-        unique_special_dates = np.unique(feed.calendar_dates.date.values)
-    for unique_special_date in unique_special_dates:
-        special_date_key = pd.to_datetime(unique_special_date).date()
-        special_dates_dict[special_date_key] = special_date_key.strftime("%Y-%m-%d")
-        graph.edge_properties[special_dates_dict[special_date_key]] = graph.new_ep("vector<int>")
+    normal_dates_dict = {}
+    for feed in feeds:
+        unique_special_dates = []
+        if feed.calendar_dates is not None:
+            unique_special_dates = np.unique(feed.calendar_dates.date.values)
+        for unique_special_date in unique_special_dates:
+            special_date_key = pd.to_datetime(unique_special_date).date()
+            special_dates_dict[special_date_key] = special_date_key.strftime("%Y-%m-%d")
+
+        start_date = pd.to_datetime(gtfs.get_start_date(feed)).date()
+        end_date = pd.to_datetime(gtfs.get_end_date(feed)).date()
+        key_for_date = f"{start_date.strftime('%Y-%m-%d')}_{end_date.strftime('%Y-%m-%d')}"
+        for normal_date in daterange(start_date, end_date):
+            normal_date_key = pd.to_datetime(normal_date).date()
+            normal_dates_dict[normal_date_key] = key_for_date
+    # add edge properties for special dates
+    for special_date_val in special_dates_dict.values():
+        graph.edge_properties[special_date_val] = graph.new_ep("vector<int>")
+    # add edge properties for normal dates (just one for each single date)
+    for normal_date_val in set(normal_dates_dict.values()):
+        graph.edge_properties[normal_date_val] = graph.new_ep("vector<int>")
     # add all special dates in the graph property
     graph.gp.special_dates = special_dates_dict
+    # add all normal dates in the graph property
+    graph.gp.normal_dates = normal_dates_dict
 
-    missing_stops = gtfs.check_stops_coordinates(feed, pos)
-    if len(missing_stops) > 0:
-        logger.error(f"Some stops are not present in the graph: {missing_stops}")
-    else:
-        logger.info("All the stops are present in the graph!")
-    count = 1
-    all_routes = gtfs.get_all_routes_id(feed)
-    for route_id in all_routes:
-        logger.debug(f"{count}/{len(all_routes)} - Route: {route_id}")
-        count += 1
-        route_df = gtfs.get_route_sequence(feed, route_id)
-        last_v = None
-        for idx, row in route_df.iterrows():
-            # logger.debug(f"\t{idx+1}/{len(route_df)}")
-            if row["end_stop_id"] is np.nan:
-                continue
-            if (row["start_stop_id"] in missing_stops) or (row["end_stop_id"] in missing_stops):
-                logger.warning(f"Missing stop {row['start_stop_id']} in route {route_id}")
-                last_v = None
-                continue
-            if last_v is None:
-                last_v = add_route_vertex_and_edge(graph, g_orig, pos, feed, row["start_stop_id"], row)
-            new_v = add_route_vertex_and_edge(graph, g_orig, pos, feed, row["end_stop_id"], row)
-            edge = graph.add_edge(last_v, new_v)
-            # ipdb.set_trace()
-            graph.ep.transport[edge] = True
-            graph.ep.duration[edge] = int(row["duration"].total_seconds())
-            graph.ep.route[edge] = row[["route_id", "route_short_name", "route_color", "route_text_color"]].to_dict()
-            graph.ep.geometry[edge] = transform(lambda x, y: (y, x), row["geometry"])
-            last_v = new_v
+    for feed in feeds:
+        missing_stops = gtfs.check_stops_coordinates(feed, pos)
+        if len(missing_stops) > 0:
+            logger.error(f"Some stops are not present in the graph: {missing_stops}")
+        else:
+            logger.info("All the stops are present in the graph!")
+        count = 1
+        all_routes = gtfs.get_all_routes_id(feed)
+        for route_id in all_routes:
+            logger.debug(f"{count}/{len(all_routes)} - Route: {route_id}")
+            count += 1
+            route_df = gtfs.get_route_sequence(feed, route_id)
+            last_v = None
+            for idx, row in route_df.iterrows():
+                # logger.debug(f"\t{idx+1}/{len(route_df)}")
+                if row["end_stop_id"] is np.nan:
+                    continue
+                if (row["start_stop_id"] in missing_stops) or (row["end_stop_id"] in missing_stops):
+                    logger.warning(f"Missing stop {row['start_stop_id']} in route {route_id}")
+                    last_v = None
+                    continue
+                if last_v is None:
+                    last_v = add_route_vertex_and_edge(graph, g_orig, pos, feed, row["start_stop_id"], row)
+                new_v = add_route_vertex_and_edge(graph, g_orig, pos, feed, row["end_stop_id"], row)
+                edge = graph.add_edge(last_v, new_v)
+                # ipdb.set_trace()
+                graph.ep.transport[edge] = True
+                graph.ep.duration[edge] = int(row["duration"].total_seconds())
+                graph.ep.route[edge] = row[["route_id", "route_short_name", "route_color", "route_text_color"]].to_dict()
+                graph.ep.geometry[edge] = transform(lambda x, y: (y, x), row["geometry"])
+                last_v = new_v
     comp, hist = gt.label_components(graph)
     comp.a += 1
     graph.vp.component_waterbus = comp
@@ -137,7 +161,8 @@ def add_route_vertex_and_edge(graph, graph_orig, pos, feed, stop_id, row):
     time_info = gtfs.get_stop_times_from_stop_route(feed, stop_id, row["route_id"])
     # graph.ep.timetable[e] = time_info[["service_id", "departure_time"]]
     normal_dates, exception_dates = gtfs.convert_departure_to_array(time_info, feed)
-    graph.ep.timetable[e] = normal_dates
+    timetable_edge_property = graph.gp.normal_dates[pd.to_datetime(gtfs.get_start_date(feed)).date()]
+    graph.ep[timetable_edge_property][e] = normal_dates
     # old code: {'standard': normal_dates} # | exception_dates  # merge two dictionaries
     for exception_date_key, values in exception_dates.items():
         edge_property_name = graph.gp.special_dates[exception_date_key]
@@ -168,3 +193,8 @@ def adjacent_one(data, item=1):
     """
     adjacent_data = list(val for val, run in groupby(data))
     return adjacent_data.count(item)
+
+
+def daterange(start_date, end_date):
+    for n in range(int((end_date - start_date).days)+1):
+        yield start_date + timedelta(n)

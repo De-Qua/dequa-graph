@@ -54,8 +54,8 @@ def add_waterbus_to_street(graph, path_gtfs):
     normal_dates = graph.new_gp("python::object")
     graph.gp.normal_dates = normal_dates
     # add last normal date as graph property
-    normal_dates = graph.new_gp("string")
-    graph.gp.normal_dates = ""
+    last_normal_date = graph.new_gp("string")
+    graph.gp.last_normal_date = last_normal_date
     # add special dates as graph property
     special_dates = graph.new_gp("python::object")
     graph.gp.special_dates = special_dates

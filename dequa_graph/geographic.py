@@ -38,7 +38,7 @@ def distance_from_a_list_of_geo_coordinates(thePoint, coordinates_list):
 
 
 def find_closest_vertices(coords_list, vertices_coords,
-                          MIN_DIST_FOR_THE_CLOSEST_NODE=100):
+                          MIN_DIST_FOR_THE_CLOSEST_NODE=1000):
     """Returns list of nodes in vertices_latlon_list closest to coordinate_list
     (euclidean distance).
     """

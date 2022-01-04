@@ -95,7 +95,7 @@ def get_weight_length(graph):
     return weight
 
 
-def get_weight_time(graph, weight=None, speed=5/3.6):
+def get_weight_time(graph, weight=None, speed=5/3.6, exclude_duration=False):
     """Returns a graph edge property that can be used in searching the shortest
     path.
     Weights correspond to the length of each edge.
@@ -104,7 +104,10 @@ def get_weight_time(graph, weight=None, speed=5/3.6):
         return get_weight_length(graph)
     if not weight:
         weight = graph.new_ep('double')
-    weight.a = graph.ep['length'].a/speed + graph.ep['duration'].a
+    if exclude_duration:
+        weight.a = graph.ep['length'].a/speed
+    else:
+        weight.a = graph.ep['length'].a/speed + graph.ep['duration'].a
     return weight
 
 
@@ -192,7 +195,7 @@ def get_weight_rowboat(graph, speed=5/3.6, width=0, height=0, dimension_multipli
     Since rowboat do not have any restriction all the canals are allowed, and the graph is considered undirected.
     """
     graph_row = gt.GraphView(graph, directed=False)
-    weight = get_weight_time(graph_row, speed)
+    weight = get_weight_time(graph=graph_row, speed=speed, exclude_duration=True)
 
     # exclude small canals (big multiplier to avoid problem if the path starts from there)
     can_width = graph_row.ep['larghezza'].a+0

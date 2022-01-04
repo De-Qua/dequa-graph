@@ -327,7 +327,10 @@ def retrieve_info_from_path_streets(graph, paths_vertices, paths_edges, start_ti
                 current_step["num_bridges"] = adjacent_one(current_step["bridges"])
             current_step['end_time'] = time_at_edge.strftime("%Y-%m-%dT%H:%M:%S")
 
-            path_steps.append(format_path_steps(**current_step))
+            # CHECK: add only if duration and distance greater than zero.
+            # We do not want the 0,0 steps (change of boat)
+            if current_step['duration'] > 0 and current_step['distance'] > 0:
+                path_steps.append(format_path_steps(**current_step))
 
             tot_distance = sum(distances)
             tot_duration = sum(durations)

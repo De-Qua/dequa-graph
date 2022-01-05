@@ -78,7 +78,11 @@ def format_path_steps(**kwargs):
             "route_short_name": kwargs.get("route_short_name", None),
             "route_stops":      kwargs.get("route_stops", None),
             "route_waiting_time": kwargs.get("route_waiting_time", None)
-        } if kwargs["type"] == "ferry" else None
+        } if kwargs["type"] == "ferry" else None,
+        # Boat
+        "boat": {
+            "type": kwargs.get("boat_type", "generic"),
+        } if kwargs["type"] == "boat" else None,
     }
     return step
 
@@ -355,7 +359,7 @@ def retrieve_info_from_path_streets(graph, paths_vertices, paths_edges, start_ti
 
 
 def retrieve_info_from_path_water(graph, paths_vertices, paths_edges, start_time,
-                                  speed=5, times_edges=None, **kwargs):
+                                  boat_speed=5, times_edges=None, motor=False, **kwargs):
     """Retrieve useful informations from the output of a path of canals (list
     of list of vertices and edges). The length of the two lists corresponds to
     the number of paths, i.e. if there are no stops betweem the start and the
@@ -394,17 +398,17 @@ def retrieve_info_from_path_water(graph, paths_vertices, paths_edges, start_time
                 "order":        0,
                 "distance":     0,
                 "duration":     0,
-                "bridges":      [],
                 'start_time':   intermediate_start_time.strftime("%Y-%m-%dT%H:%M:%S"),
+                "boat_type":    "motor" if motor else "row"
             }
 
             time_at_edge = intermediate_start_time
 
             for e, e_time in zip(edges, edge_times):
                 if graph.ep['vel_max'][e] == 0:
-                    edge_speed = speed
+                    edge_speed = boat_speed
                 else:
-                    edge_speed = min(speed, graph.ep['vel_max'][e])
+                    edge_speed = min(boat_speed, graph.ep['vel_max'][e]/3.6)
                 distance = graph.ep['length'][e]
                 duration = distance / edge_speed
                 time_at_edge += timedelta(seconds=duration)
@@ -413,7 +417,7 @@ def retrieve_info_from_path_water(graph, paths_vertices, paths_edges, start_time
                 if graph.ep['solo_remi'][e]:
                     edge_type = "rioblu"
                 else:
-                    edge_type = "boat"
+                    edge_type = "boat_motor" if motor else "boat_row"
 
                 edge_info = {
                     'edge_type': edge_type,

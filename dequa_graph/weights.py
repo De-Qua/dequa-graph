@@ -45,7 +45,7 @@ import graph_tool.all as gt
 
 
 def get_weight(graph, mode='walk', speed=5/3.6, avoid_bridges=False, avoid_tide=False, tide_level=80, boots_height=0,
-               starting_hour=None,
+               starting_hour=None, prefer_public_transport=False,
                boat_speed=5/3.6, motor_boat=False,
                boat_width=0, boat_height=0):
     """
@@ -57,6 +57,8 @@ def get_weight(graph, mode='walk', speed=5/3.6, avoid_bridges=False, avoid_tide=
     """
     if mode == 'walk':
         weight = get_weight_time(graph=graph, speed=speed)
+        if prefer_public_transport:
+            weight = get_weight_public_transport(graph=graph, weight=weight)
         if avoid_bridges:
             weight = get_weight_bridges(graph=graph, weight=weight, speed=speed)
         if avoid_tide:
@@ -108,6 +110,13 @@ def get_weight_time(graph, weight=None, speed=5/3.6, exclude_duration=False):
         weight.a = graph.ep['length'].a/speed
     else:
         weight.a = graph.ep['length'].a/speed + graph.ep['duration'].a
+    return weight
+
+
+def get_weight_public_transport(graph, weight=None, no_transport_multiplier=100):
+    if not weight:
+        weight = graph.new_ep('double')
+    weight.a += np.logical_not(graph.ep['transport'].a) * no_transport_multiplier
     return weight
 
 
@@ -219,11 +228,11 @@ def get_weight_motorboat(graph, speed=5/3.6, start_time=None, type="private", wi
 
     # speed limits
     if type == "private":
-        speed = np.minimum(speed, graph.ep['vel_max'].a)
+        speed = np.minimum(speed, graph.ep['vel_max'].a/3.6)
     elif type == "taxi":
-        speed = np.minimum(speed, graph.ep['vel_max_mp'].a)
+        speed = np.minimum(speed, graph.ep['vel_max_mp'].a/3.6)
     else:
-        speed = np.minimum(speed, graph.ep['vel_max'].a)
+        speed = np.minimum(speed, graph.ep['vel_max'].a/3.6)
 
     weight.a /= speed
 

@@ -152,6 +152,13 @@ def calculate_path(graph, coords_start, coords_end, coords_stop=None,
     # if all_vertices.size == 0:
     #     all_vertices = get_all_coordinates(graph)
 
+    start_v, end_v, stop_v = find_path_vertices(coords_start, coords_end, coords_stop, all_vertices)
+
+    v_list, e_list, t_list = get_path(graph, start_v, end_v, stop_v, weight, use_public_transport, start_time, time_edge_property, transport_property, timetable_property)
+    return v_list, e_list, t_list
+
+
+def find_path_vertices(coords_start, coords_end, coords_stop=None, all_vertices=np.ndarray(0)):
     start_v = find_closest_vertices(coords_start, all_vertices)
     if len(start_v) > 1:
         logger.error(f"We cannot calculate the path from multiple sources")
@@ -167,9 +174,7 @@ def calculate_path(graph, coords_start, coords_end, coords_stop=None,
     else:
         end_v = end_v[0]
     stop_v = find_closest_vertices(coords_stop, all_vertices)
-
-    v_list, e_list, t_list = get_path(graph, start_v, end_v, stop_v, weight, use_public_transport, start_time, time_edge_property, transport_property, timetable_property)
-    return v_list, e_list, t_list
+    return start_v, end_v, stop_v
 
 
 def get_distance(graph, vertex_start, vertices_end, weight):

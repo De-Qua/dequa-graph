@@ -45,7 +45,7 @@ Response format
 """
 
 import numpy as np
-from shapely.geometry import mapping
+from shapely.geometry import mapping, MultiLineString
 import ipdb
 from datetime import datetime, timedelta
 
@@ -85,6 +85,28 @@ def format_path_steps(**kwargs):
         } if kwargs["type"] == "boat" else None,
     }
     return step
+
+
+def format_edge_info(**kwargs):
+    edge_type = kwargs.get("edge_type", None)
+    if edge_type == "walk":
+        return {
+            "edge_type": "walk"
+        }
+    elif edge_type == "ferry":
+        return {
+            "edge_type": "ferry",
+            "route_color": kwargs.get("route_color", None)
+        }
+    elif edge_type == "bridge":
+        return {
+            "edge_type": "bridge",
+            "accessibility": kwargs.get("accessibility", 0)
+        }
+    else:
+        return {
+            "edge_type": edge_type
+        }
 
 
 def retrieve_info_from_path_streets(graph, paths_vertices, paths_edges, start_time,
@@ -138,6 +160,9 @@ def retrieve_info_from_path_streets(graph, paths_vertices, paths_edges, start_ti
             }
             # stops = []
             time_at_edge = intermediate_start_time
+
+            last_edge = None
+            edge_linestrings = []
 
             for e, e_time in zip(edges, edge_times):
                 # general info
@@ -305,20 +330,41 @@ def retrieve_info_from_path_streets(graph, paths_vertices, paths_edges, start_ti
                     # append walkways height
                     'walkway_cm': graph.ep['pas_height'][e],
                     # # append street id
-                    # 'street_id': graph.ep['street_id'][e]
+                    'street_id': graph.ep['street_id'][e]
                 }
-                # # correct for NaN values
-                for k, v in edge_info.items():
-                    if k in ["max_tide", "accessibility", "walkway_zps", "walkway_cm"]:
-                        if np.isnan(v):
-                            edge_info[k] = None
-                # append geometries
-                geojson = {
-                    "type": "Feature",
-                    "properties": edge_info,
-                    "geometry": mapping(graph.ep['geometry'][e])
-                }
-                geojsons.append(geojson)
+                edge_info_formatted = format_edge_info(**edge_info)
+                # ipdb.set_trace()
+                if last_edge is None:
+                    last_edge = edge_info_formatted
+                # correct for NaN values
+                # for k, v in edge_info.items():
+                #     if k in ["max_tide", "accessibility", "walkway_zps", "walkway_cm"]:
+                #         if np.isnan(v):
+                #             edge_info[k] = None
+                if last_edge == edge_info_formatted:
+                    if not graph.ep["geometry"][e].is_empty:
+                        edge_linestrings.append(graph.ep['geometry'][e])
+                else:
+                    # close old edge
+                    geojson = {
+                        "type": "Feature",
+                        "properties": last_edge,
+                        "geometry": mapping(MultiLineString(edge_linestrings))
+                    }
+                    # ipdb.set_trace()
+                    geojsons.append(geojson)
+                    last_edge = edge_info_formatted
+                    if graph.ep["geometry"][e].is_empty:
+                        edge_linestrings = []
+                    else:
+                        edge_linestrings = [graph.ep['geometry'][e]]
+                # # append geometries
+                # geojson = {
+                #     "type": "Feature",
+                #     "properties": edge_info,
+                #     "geometry": mapping(graph.ep['geometry'][e])
+                # }
+                # geojsons.append(geojson)
 
                 # update distance, time and bridges
                 distances.append(distance)
@@ -330,6 +376,13 @@ def retrieve_info_from_path_streets(graph, paths_vertices, paths_edges, start_ti
             if current_step["type"] == "walk":
                 current_step["num_bridges"] = adjacent_one(current_step["bridges"])
             current_step['end_time'] = time_at_edge.strftime("%Y-%m-%dT%H:%M:%S")
+            # close last edge
+            geojson = {
+                "type": "Feature",
+                "properties": last_edge,
+                "geometry": mapping(MultiLineString(edge_linestrings))
+            }
+            geojsons.append(geojson)
 
             # CHECK: add only if duration and distance greater than zero.
             # We do not want the 0,0 steps (change of boat)

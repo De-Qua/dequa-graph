@@ -15,7 +15,8 @@ class dequaVisitor(gt.DijkstraVisitor):
     # def __init__(self, g, touched_v, touched_e, target, time_from_source, graph_weights, start_time, time_edges):
     def __init__(self, touched_v, target, time_from_source,
                  graph_weights, start_time, time_edges,
-                 transport_property, timetable_property):
+                 transport_property, timetable_property, direction_property,
+                 transport_change_penalty):
         self.touched_v = touched_v
         # self.touched_e = touched_e
         self.target = target
@@ -26,6 +27,8 @@ class dequaVisitor(gt.DijkstraVisitor):
         self.start_time = start_time
         self.transport = transport_property
         self.timetable = timetable_property
+        self.direction = direction_property
+        self.transport_change_penalty = transport_change_penalty
 
     def discover_vertex(self, u):
         self.touched_v[u] = True
@@ -33,15 +36,29 @@ class dequaVisitor(gt.DijkstraVisitor):
     def examine_edge(self, e):
         # self.touched_e[e] = True
         # andando in pontile, metto il tempo d'attesa
+        # if self.direction[e] == e.target():
+        #     ipdb.set_trace()
+        if self.direction[e] == e.source():
+            self.weight[e] = np.inf
+            return
         if self.transport[e.target()] and not self.transport[e.source()]:
+            # print("1st if")
             waiting_time = self.calculate_waiting_time(e)
             self.weight[e] = waiting_time
             if self.touched_v[e.target()]:
+                # print("2nd if")
                 self.time_from_source[e.target()] = np.minimum(self.time_from_source[e.source()] + waiting_time, self.time_from_source[e.target()])
             else:
+                # print("2nd else")
                 self.time_from_source[e.target()] = self.time_from_source[e.source()] + waiting_time
             #print(f"visitor now between {e.source()} and {e.target()} with time {self.time_from_source[e.target()]:.3f}, avendo appena aggiunto {waiting_time}")
+        # elif self.transport[e.source()] and not self.transport[e.target()]:
+        #     self.weight[e] = 0
+            # ipdb.set_trace()
         else:
+            if self.transport[e.source()]: # and not self.transport[e.target()]
+                # siamo nel caso in cui stiamo scendendo dal battello
+                self.weight[e] = self.transport_change_penalty
             if self.touched_v[e.target()]:
                 self.time_from_source[e.target()] = np.minimum(self.time_from_source[e.source()] + self.time_edges[e], self.time_from_source[e.target()])
             else:
@@ -76,7 +93,7 @@ class dequaVisitor(gt.DijkstraVisitor):
                     return self.timetable[e].a[0] + TOTAL_SECONDS_IN_WEEK - (self.time_from_source[e.source()] + self.start_time)
                 else:
                     print("\n\n\nè per caso domenica sera??! Sera tardi: pesi negativi, strano\n\n\n")
-                    ipdb.set_trace()
+                    # ipdb.set_trace()
         except IndexError:
             print(f"Edge {e} tra {e.source()} e {e.target()}")
             print("# WARNING: non c'è nulla nell'array! é una corsa che c'è solo nei giorni speciali?")
@@ -147,7 +164,7 @@ def find_closest_vertices(coord_list, vertices_latlon_list, MIN_DIST_FOR_THE_CLO
 
 if __name__ == "__main__":
 
-    graph_path = "/Users/ale/Documents/Venezia/MappaDisabili/code/v4w_website/app/static/files/dequa_ve_terra_v14_1110_battelli.gt"
+    graph_path = "/Users/ale/Documents/Venezia/MappaDisabili/code/static/files/graphs/graph_street_plus_waterbus_file_2022-10-15.gt"
     g = gt.load_graph(graph_path)
     pos = g.vp['latlon']
     all_pos = np.array([pos[v].a for v in g.iter_vertices()])
@@ -160,12 +177,12 @@ if __name__ == "__main__":
     time_from_source = g.new_vertex_property("double")
     # paretnza 45.43988044474121   12.339807563546461
     # arrivo 45.43170127993013 12.325036058157616
-    coord_source = [np.array([12.339807563546461, 45.43988044474121])]  # rialto (quasi, non proprio)
+    coord_source = [np.array([12.325428910998811, 45.426670216765814])]  # rialto (quasi, non proprio)
     #coord_source = [np.array([12.355488828203178, 45.419738395449336])]  # san servolo
     #coord_source = [np.array([12.342391, 45.42943])]  # san giorgio
     id_closest_vertex_source = find_closest_vertices(coord_source, all_pos)
 
-    coord_target = [np.array([12.325005472560107, 45.42545331547442])]  # giudecc
+    coord_target = [np.array([12.326646633891578, 45.42939591258414])]  # giudecc
     #coord_target = [np.array([12.342707496284957, 45.43381763225837])]  # s.zaccaria
     id_closest_vertex_target = find_closest_vertices(coord_target, all_pos)
     latlon = g.vertex_properties['latlon']

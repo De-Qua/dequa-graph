@@ -20,6 +20,7 @@ def load_graphs(*paths_gt_graphs):
     """Load graph-tool graphs, one for each input path."""
     all_graphs = []
     for path_gt in paths_gt_graphs:
+        path_gt = str(path_gt)
         all_graphs.append(gt.load_graph(path_gt))
 
     if len(all_graphs) == 1:
@@ -47,6 +48,9 @@ def add_waterbus_to_street(graph, path_gtfs):
     # add route edge property
     route = graph.new_ep("python::object")
     graph.ep.route = route
+    # add direction edge property (target)
+    direction = graph.new_ep("int")
+    graph.ep.direction = direction
     # add duration edge property
     duration = graph.new_ep("double")
     graph.ep.duration = duration
@@ -132,6 +136,7 @@ def add_waterbus_to_street(graph, path_gtfs):
                 graph.ep.transport[edge] = True
                 graph.ep.duration[edge] = int(row["duration"].total_seconds())
                 graph.ep.route[edge] = row[["route_id", "route_short_name", "route_color", "route_text_color"]].to_dict()
+                graph.ep.direction[edge] = new_v
                 graph.ep.geometry[edge] = transform(lambda x, y: (y, x), row["geometry"])
                 last_v = new_v
     comp, hist = gt.label_components(graph)

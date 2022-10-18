@@ -53,7 +53,8 @@ logger = set_up_logging()
 
 def get_path(graph, vertex_start, vertex_end, vertices_stop=None, weights=None,
              use_public_transport=False, start_time=None, time_edge_property=None,
-             transport_property=None, timetable_property=None):
+             transport_property=None, timetable_property=None, direction_property=None,
+             transport_change_penalty=0):
     """Calculate the shortest path that starts with the first coodinates in the
     list, make stops for each intermediate coordinates, and end with the last
     coordinates in the list.
@@ -79,7 +80,7 @@ def get_path(graph, vertex_start, vertex_end, vertices_stop=None, weights=None,
         for v in vertices_stop:
             if use_public_transport:
                 # il nuovo visitor
-                tmp_v_list_weight, tmp_e_list_weight, tmp_t_list_weight = td_shortest_path(graph, last_v, v, weight, start_time, time_edge_property, transport_property, timetable_property)
+                tmp_v_list_weight, tmp_e_list_weight, tmp_t_list_weight = td_shortest_path(graph, last_v, v, weight, start_time, time_edge_property, transport_property, timetable_property, direction_property, transport_change_penalty)
                 start_time += timedelta(seconds=sum(tmp_t_list_weight))
             else:
                 tmp_v_list_weight, tmp_e_list_weight = gt.shortest_path(graph, last_v, v, weight)
@@ -101,7 +102,7 @@ def get_path(graph, vertex_start, vertex_end, vertices_stop=None, weights=None,
     return v_list, e_list, t_list
 
 
-def td_shortest_path(graph, source, target, weight, start_time, time_edge_property, transport_property, timetable_property):
+def td_shortest_path(graph, source, target, weight, start_time, time_edge_property, transport_property, timetable_property, direction_property, transport_change_penalty=0):
     """
     Get the time-dependent shortest path by using Dijkstra algorithm
     """
@@ -111,6 +112,7 @@ def td_shortest_path(graph, source, target, weight, start_time, time_edge_proper
     # define some porperty for internal use
     touch_v = graph.new_vertex_property("bool")
     time_from_source = graph.new_vertex_property("double")
+    pred_map = graph.new_vertex_property("int64_t")
     dist, pred = gt.dijkstra_search(g=graph,
                                     weight=weight,
                                     source=source,
@@ -121,7 +123,9 @@ def td_shortest_path(graph, source, target, weight, start_time, time_edge_proper
                                                          start_time=start_seconds,
                                                          time_edges=time_edge_property,
                                                          transport_property=transport_property,
-                                                         timetable_property=timetable_property))
+                                                         timetable_property=timetable_property,
+                                                         direction_property=direction_property,
+                                                         transport_change_penalty=transport_change_penalty))
     # no path to target
     if pred[target] == int(target):
         return [], []
@@ -147,14 +151,20 @@ def td_shortest_path(graph, source, target, weight, start_time, time_edge_proper
 def calculate_path(graph, coords_start, coords_end, coords_stop=None,
                    weight=None, all_vertices=np.ndarray(0),
                    use_public_transport=False, start_time=None, time_edge_property=None,
-                   transport_property=None, timetable_property=None):
+                   transport_property=None, timetable_property=None, direction_property=None,
+                   transport_change_penalty=0):
     """Calculate the shortest path between two coordinates."""
     # if all_vertices.size == 0:
     #     all_vertices = get_all_coordinates(graph)
 
     start_v, end_v, stop_v = find_path_vertices(coords_start, coords_end, coords_stop, all_vertices)
 
-    v_list, e_list, t_list = get_path(graph, start_v, end_v, stop_v, weight, use_public_transport, start_time, time_edge_property, transport_property, timetable_property)
+    v_list, e_list, t_list = get_path(graph,
+                                      start_v, end_v, stop_v, weight,
+                                      use_public_transport, start_time,
+                                      time_edge_property, transport_property,
+                                      timetable_property, direction_property,
+                                      transport_change_penalty)
     return v_list, e_list, t_list
 
 

@@ -542,7 +542,6 @@ def retrieve_info_from_path_water(graph, paths_vertices, paths_edges, start_time
             'paths': info
         }
         all_info.append(info_path)
-        all_info.append(info)
     return all_info
 
 

@@ -3,15 +3,19 @@ Response format
 [
     PATH1
     [
-        start_time
-        end_time
-        distances
-        time
-        num_bridges
-        num_edges
-        num_transports
-        routes
-        edges
+        total_distance
+        total_duration
+        paths: {
+            start_time
+            end_time
+            distances
+            time
+            num_bridges
+            num_edges
+            num_transports
+            routes
+            edges
+        }
     ]
     PATH2
     [
@@ -139,6 +143,8 @@ def retrieve_info_from_path_streets(graph, paths_vertices, paths_edges, start_ti
     for alternative_path, alternative_times in zip(paths_edges, times_edges):
         info = []
         intermediate_start_time = start_time
+        tot_distance = 0
+        tot_duration = 0
         for edges, edge_times in zip(alternative_path, alternative_times):
             distances = []
             durations = []
@@ -393,6 +399,7 @@ def retrieve_info_from_path_streets(graph, paths_vertices, paths_edges, start_ti
             tot_duration = sum(durations)
             # num_bridges = adjacent_one(is_bridge)
             # num_transports = adjacent_one(is_transport)
+
             info.append({
                 'start_time': intermediate_start_time.strftime("%Y-%m-%dT%H:%M:%S"),
                 'end_time': time_at_edge.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -407,7 +414,14 @@ def retrieve_info_from_path_streets(graph, paths_vertices, paths_edges, start_ti
                 'edges': geojsons
             })
             intermediate_start_time = time_at_edge
-        all_info.append(info)
+            tot_distance += tot_distance
+            tot_duration += tot_duration
+        info_path = {
+            'total_distance': tot_distance,
+            'total_duration': tot_duration,
+            'paths': info
+        }
+        all_info.append(info_path)
     return all_info
 
 
@@ -440,6 +454,8 @@ def retrieve_info_from_path_water(graph, paths_vertices, paths_edges, start_time
     for alternative_path, alternative_times in zip(paths_edges, times_edges):
         info = []
         intermediate_start_time = start_time
+        tot_distance = 0
+        tot_duration = 0
         for edges, edge_times in zip(alternative_path, alternative_times):
             distances = []
             durations = []
@@ -518,6 +534,14 @@ def retrieve_info_from_path_water(graph, paths_vertices, paths_edges, start_time
                 'edges': geojsons
             })
             intermediate_start_time = time_at_edge
+            tot_distance += tot_distance
+            tot_duration += tot_duration
+        info_path = {
+            'total_distance': tot_distance,
+            'total_duration': tot_duration,
+            'paths': info
+        }
+        all_info.append(info_path)
         all_info.append(info)
     return all_info
 

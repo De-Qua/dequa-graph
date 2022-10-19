@@ -113,7 +113,7 @@ def get_weight_time(graph, weight=None, speed=5/3.6, exclude_duration=False):
     return weight
 
 
-def get_weight_public_transport(graph, weight=None, no_transport_multiplier=100):
+def get_weight_public_transport(graph, weight=None, no_transport_multiplier=1.5):
     if not weight:
         weight = graph.new_ep('double')
     weight.a += np.logical_not(graph.ep['transport'].a) * no_transport_multiplier

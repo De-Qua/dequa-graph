@@ -56,7 +56,7 @@ class dequaVisitor(gt.DijkstraVisitor):
         #     self.weight[e] = 0
             # ipdb.set_trace()
         else:
-            if self.transport[e.source()]: # and not self.transport[e.target()]
+            if self.transport[e.source()] and not self.transport[e.target()]:
                 # siamo nel caso in cui stiamo scendendo dal battello
                 self.weight[e] = self.transport_change_penalty
             if self.touched_v[e.target()]:

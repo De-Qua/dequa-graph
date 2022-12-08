@@ -182,8 +182,8 @@ def get_weight_tide(graph, tide_level, weight=None, high_tide_multiplier=10000,
 
     # if it is a bridge it is never under water
     bridges = graph.ep['ponte'].a
-    cm_below_boots[bridges] = 0
-    cm_under_water[bridges] = 0
+    cm_below_boots[np.array(bridges, dtype=bool)] = 0
+    cm_under_water[np.array(bridges, dtype=bool)] = 0
     # calculate the weight adding to the length the tide multiplier times the
     # cm under water
     weight.a[cm_below_boots == 0] /= speed

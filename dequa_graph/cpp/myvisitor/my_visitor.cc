@@ -5,6 +5,7 @@
 #include <boost/graph/random.hpp>
 #include <random>
 #include <iostream>
+#include <boost/python.hpp>
 
 using G = boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS>;
 using V = G::vertex_descriptor;
@@ -30,7 +31,7 @@ struct my_visitor : boost::default_dijkstra_visitor {
     size_t &visited;
 };
 
-int main() {
+int func_my_visitor() {
 #if 1
     auto seed = 2912287549; // fixed seed for demo
 #else
@@ -88,4 +89,10 @@ int main() {
         std::copy(path.begin(), path.end(), std::ostream_iterator<V>(std::cout, ", "));
         std::cout << end_vertex << "\n";
     }
+}
+
+BOOST_PYTHON_MODULE(libmyvisitor)
+{
+    using namespace boost::python;
+    def("func_py_visitor", func_my_visitor);
 }

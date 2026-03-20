@@ -9,6 +9,7 @@ from shapely.ops import transform
 
 import graph_tool.all as gt
 import ipdb
+import io
 # IMPORT OUR LIBRARIES
 from . import set_up_logging
 from . import lib_gtfs as gtfs
@@ -27,6 +28,18 @@ def load_graphs(*paths_gt_graphs):
         all_graphs = all_graphs[0]
     return all_graphs
 
+
+def load_graphs_binary(*binary_gt_graphs):
+    """Load graph-tool graphs stored in binary format, one for each input"""
+    all_graphs = []
+    for binary_gt in binary_gt_graphs:
+        with io.BytesIO(binary_gt) as f:
+            all_graphs.append(gt.load_graph(f))
+    
+    if len(all_graphs) == 1:
+        all_graphs = all_graphs[0]
+    return all_graphs
+    
 
 def add_waterbus_to_street(graph, path_gtfs):
     """Add gtfs vertices and edges to graph"""
@@ -156,7 +169,8 @@ def get_id_from_coordinates(pos, coordinates):
     try:
         return np.where((pos[:, 0] == coordinates[0]) & (pos[:, 1] == coordinates[1]))[0][0]
     except IndexError:
-        ipdb.set_trace()
+        # ipdb.set_trace()
+        Warning("Index error")
 
 
 def add_route_vertex_and_edge(graph, graph_orig, pos, feed, stop_id, row):

@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import numpy as np
-from graph_tool.all import load_graph, DijkstraVisitor, dijkstra_search, StopSearch
+from graph_tool import load_graph
+from graph_tool.search import dijkstra_search, DijkstraVisitor, StopSearch
 import time
 import ipdb
 from .weights import get_weight_time

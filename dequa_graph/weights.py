@@ -41,7 +41,7 @@ vel_max_mp     (edge)    (type: double)
 import numpy as np
 import datetime as dt
 
-from graph_tool.all import GraphView
+from graph_tool import GraphView
 
 
 def get_weight(graph, mode='walk', speed=5/3.6, avoid_bridges=False, avoid_tide=False, tide_level=80, boots_height=0,

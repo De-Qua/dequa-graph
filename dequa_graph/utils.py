@@ -7,7 +7,8 @@ from itertools import groupby
 from shapely.geometry import LineString
 from shapely.ops import transform
 
-from graph_tool.all import load_graph, label_components, GraphView
+from graph_tool import load_graph, GraphView
+from graph_tool.topology import label_components
 
 import ipdb
 import io

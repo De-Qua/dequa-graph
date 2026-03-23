@@ -41,7 +41,7 @@ vel_max_mp     (edge)    (type: double)
 import numpy as np
 import datetime as dt
 
-import graph_tool.all as gt
+from graph_tool.all import GraphView
 
 
 def get_weight(graph, mode='walk', speed=5/3.6, avoid_bridges=False, avoid_tide=False, tide_level=80, boots_height=0,
@@ -203,7 +203,7 @@ def get_weight_rowboat(graph, speed=5/3.6, width=0, height=0, dimension_multipli
     Weights correspond to the time of each edge (length/speed).
     Since rowboat do not have any restriction all the canals are allowed, and the graph is considered undirected.
     """
-    graph_row = gt.GraphView(graph, directed=False)
+    graph_row = GraphView(graph, directed=False)
     weight = get_weight_time(graph=graph_row, speed=speed, exclude_duration=True)
 
     # exclude small canals (big multiplier to avoid problem if the path starts from there)

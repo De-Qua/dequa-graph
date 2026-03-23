@@ -7,7 +7,8 @@ from itertools import groupby
 from shapely.geometry import LineString
 from shapely.ops import transform
 
-import graph_tool.all as gt
+from graph_tool.all import load_graph, label_components, GraphView
+
 import ipdb
 import io
 # IMPORT OUR LIBRARIES
@@ -22,7 +23,7 @@ def load_graphs(*paths_gt_graphs):
     all_graphs = []
     for path_gt in paths_gt_graphs:
         path_gt = str(path_gt)
-        all_graphs.append(gt.load_graph(path_gt))
+        all_graphs.append(load_graph(path_gt))
 
     if len(all_graphs) == 1:
         all_graphs = all_graphs[0]
@@ -34,7 +35,7 @@ def load_graphs_binary(*binary_gt_graphs):
     all_graphs = []
     for binary_gt in binary_gt_graphs:
         with io.BytesIO(binary_gt) as f:
-            all_graphs.append(gt.load_graph(f))
+            all_graphs.append(load_graph(f))
     
     if len(all_graphs) == 1:
         all_graphs = all_graphs[0]
@@ -77,11 +78,11 @@ def add_waterbus_to_street(graph, path_gtfs):
     special_dates = graph.new_gp("python::object")
     graph.gp.special_dates = special_dates
     # get components
-    comp, hist = gt.label_components(graph)
+    comp, hist = label_components(graph)
     comp.a += 1
     graph.vp.component_street = comp
     # get a copy of the original graph without the transports
-    g_orig = gt.GraphView(graph, vfilt=lambda v: not transport_stop[v])
+    g_orig = GraphView(graph, vfilt=lambda v: not transport_stop[v])
     pos = get_all_coordinates(g_orig)
     # load feed gtfs
     # feed = gtfs.load_feed(path_gtfs[0])
@@ -152,7 +153,7 @@ def add_waterbus_to_street(graph, path_gtfs):
                 graph.ep.direction[edge] = new_v
                 graph.ep.geometry[edge] = transform(lambda x, y: (y, x), row["geometry"])
                 last_v = new_v
-    comp, hist = gt.label_components(graph)
+    comp, hist = label_components(graph)
     comp.a += 1
     graph.vp.component_waterbus = comp
 

@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 import numpy as np
-import graph_tool.all as gt
+from graph_tool.all import load_graph, DijkstraVisitor, dijkstra_search, StopSearch
 import time
 import ipdb
 from .weights import get_weight_time
@@ -10,7 +10,7 @@ speed = 5/3.6
 TOTAL_SECONDS_IN_WEEK = 24*7*3600
 
 
-class dequaVisitor(gt.DijkstraVisitor):
+class dequaVisitor(DijkstraVisitor):
 
     # def __init__(self, g, touched_v, touched_e, target, time_from_source, graph_weights, start_time, time_edges):
     def __init__(self, touched_v, target, time_from_source,
@@ -71,7 +71,7 @@ class dequaVisitor(gt.DijkstraVisitor):
 
     def edge_relaxed(self, e):
         if e.target() == self.target:
-            raise gt.StopSearch()
+            raise StopSearch()
 
     def calculate_waiting_time(self, e):
         try:
@@ -165,7 +165,7 @@ def find_closest_vertices(coord_list, vertices_latlon_list, MIN_DIST_FOR_THE_CLO
 if __name__ == "__main__":
 
     graph_path = "/Users/ale/Documents/Venezia/MappaDisabili/code/static/files/graphs/graph_street_plus_waterbus_file_2022-10-15.gt"
-    g = gt.load_graph(graph_path)
+    g = load_graph(graph_path)
     pos = g.vp['latlon']
     all_pos = np.array([pos[v].a for v in g.iter_vertices()])
     #map_coords = [np.array([12.331366730532233, 45.43670740765949])]
@@ -199,7 +199,7 @@ if __name__ == "__main__":
     transport_property = g.vp.transport_stop
     timetable_property = g.ep.timetable
 
-    dist, pred = gt.dijkstra_search(g=g,
+    dist, pred = dijkstra_search(g=g,
                                     weight=weight_time,
                                     source=source,
                                     visitor=dequaVisitor(touched_v=touch_v,

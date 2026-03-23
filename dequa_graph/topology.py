@@ -39,7 +39,8 @@ import ipdb
 from datetime import timedelta
 import numpy as np
 
-import graph_tool.all as gt
+from graph_tool.topology import shortest_path, shortest_distance
+from graph_tool.search import dijkstra_search
 
 from . import set_up_logging
 from .geographic import find_closest_vertices
@@ -83,7 +84,7 @@ def get_path(graph, vertex_start, vertex_end, vertices_stop=None, weights=None,
                 tmp_v_list_weight, tmp_e_list_weight, tmp_t_list_weight = td_shortest_path(graph, last_v, v, weight, start_time, time_edge_property, transport_property, timetable_property, direction_property, transport_change_penalty)
                 start_time += timedelta(seconds=sum(tmp_t_list_weight))
             else:
-                tmp_v_list_weight, tmp_e_list_weight = gt.shortest_path(graph, last_v, v, weight)
+                tmp_v_list_weight, tmp_e_list_weight = shortest_path(graph, last_v, v, weight)
                 # times are the weights since it is not time-dependent path
                 tmp_t_list_weight = tmp_e_list_weight
             if not tmp_v_list_weight:
@@ -113,7 +114,7 @@ def td_shortest_path(graph, source, target, weight, start_time, time_edge_proper
     touch_v = graph.new_vertex_property("bool")
     time_from_source = graph.new_vertex_property("double")
     pred_map = graph.new_vertex_property("int64_t")
-    dist, pred = gt.dijkstra_search(g=graph,
+    dist, pred = dijkstra_search(g=graph,
                                     weight=weight,
                                     source=source,
                                     visitor=dequaVisitor(touched_v=touch_v,
@@ -191,7 +192,7 @@ def get_distance(graph, vertex_start, vertices_end, weight):
     """Calculates the shortest distance in the input graph between one source
     vertex and one (or a list of) target vertex.
     """
-    dist = gt.shortest_distance(graph, vertex_start, vertices_end, weight)
+    dist = shortest_distance(graph, vertex_start, vertices_end, weight)
     return dist
 
 

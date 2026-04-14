@@ -2,6 +2,8 @@ from graph_tool import _prop, Vector_int32_t, Vector_size_t, _check_prop_writabl
      _check_prop_scalar, _check_prop_vector, Graph, VertexPropertyMap, \
      PropertyMap, GraphView, libcore, _get_rng, perfect_prop_hash, _limit_args
 
+from graph_tool.topology import shortest_distance
+
 import numpy, collections
 
 import lib_dequadistance
@@ -9,7 +11,11 @@ import lib_dequadistance
 def dequa_shortest_distance(g, source=None, target=None, weights=None,
                       negative_weights=False, max_dist=None, directed=None,
                       dense=False, dist_map=None, pred_map=False,
-                      return_reached=False, dag=False):
+                      return_reached=False, dag=False,
+                      start_time=None, time_edges=None, transport_property=None,
+                      timetable_property=None, direction_property=None,
+                      transport_change_penalty=None,
+                      start_time_seconds=None):
 
 
     tgtlist = False
@@ -17,11 +23,13 @@ def dequa_shortest_distance(g, source=None, target=None, weights=None,
         tgtlist = True
         target = numpy.asarray(target, dtype="int64")
     elif target is None:
+        raise ValueError("Target cannot be None")
         target = numpy.array([], dtype="int64")
     else:
         target = numpy.asarray([int(target)], dtype="int64")
 
     if weights is None:
+        raise ValueError("Weights cannot be None")
         dist_type = 'int32_t'
     else:
         dist_type = weights.value_type()
@@ -30,12 +38,14 @@ def dequa_shortest_distance(g, source=None, target=None, weights=None,
         if source is not None:
             dist_map = g.new_vertex_property(dist_type)
         else:
+            raise ValueError("Source cannot be None")
             dist_map = g.new_vertex_property("vector<%s>" % dist_type)
 
     _check_prop_writable(dist_map, name="dist_map")
     if source is not None:
         _check_prop_scalar(dist_map, name="dist_map")
     else:
+        raise ValueError("Source cannot be None")
         _check_prop_vector(dist_map, name="dist_map")
 
     if max_dist is None:
@@ -58,6 +68,9 @@ def dequa_shortest_distance(g, source=None, target=None, weights=None,
         else:
             pmap = u.copy_property(u.vertex_index, value_type="int64_t")
         reached = libcore.Vector_size_t()
+        time_from_source = u.new_vertex_property("double")
+
+        breakpoint()
         lib_dequadistance.dequa_get_dists(u._Graph__graph,
                                          int(source),
                                          target,
@@ -65,9 +78,15 @@ def dequa_shortest_distance(g, source=None, target=None, weights=None,
                                          _prop("e", u, weights),
                                          _prop("v", u, pmap),
                                          float(max_dist),
-                                         negative_weights, reached, dag)
+                                         negative_weights, reached,
+                                         _prop("v", u, time_from_source),
+                                         _prop("e", u, time_edges),
+                                         _prop("v", u, transport_property),
+                                         _prop("e", u, timetable_property),
+                                         _prop("e", u, direction_property),
+                                         start_time_seconds)
     else:
-        raise ValueError("Sourcceeeeeeeee missing!!!")
+        raise ValueError("Source cannot be None")
 
     if source is not None and len(target) > 0:
         if len(target) == 1 and not tgtlist:
@@ -90,12 +109,24 @@ def dequa_shortest_distance(g, source=None, target=None, weights=None,
         return dist_map
 
 def dequa_shortest_path(g, source, target, weights=None, negative_weights=False,
-                  pred_map=None, dag=False):
+                  pred_map=None, dag=False,
+                  start_time=None, time_edges=None, transport_property=None,
+                  timetable_property=None, direction_property=None,
+                  transport_change_penalty=None, start_time_seconds=None):
 
     if pred_map is None:
-        pred_map = dequa_shortest_distance(g, source, target, weights=weights,
+        if start_time is None:
+            # Base graph_tool case
+            pred_map = shortest_distance(g, source, target, weights=weights,
                                      negative_weights=negative_weights,
                                      pred_map=True, dag=dag)[1]
+        else:
+            pred_map = dequa_shortest_distance(g, source, target, weights=weights,
+                                     negative_weights=negative_weights,
+                                     pred_map=True,
+                                     start_time=start_time, time_edges=time_edges, transport_property=transport_property,
+                                     timetable_property=timetable_property, direction_property=direction_property,
+                                     transport_change_penalty=transport_change_penalty, start_time_seconds=start_time_seconds)[1]
 
     if pred_map[target] == int(target):  # no path to target
         return [], []

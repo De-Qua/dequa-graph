@@ -6,16 +6,16 @@ from graph_tool.topology import shortest_distance
 
 import numpy, collections
 
-import lib_dequadistance
+from lib_dequadistance import dequa_get_dists, DequaProperties
 
 def dequa_shortest_distance(g, source=None, target=None, weights=None,
                       negative_weights=False, max_dist=None, directed=None,
                       dense=False, dist_map=None, pred_map=False,
                       return_reached=False, dag=False,
+                      time_from_source=None,
                       start_time=None, time_edges=None, transport_property=None,
                       timetable_property=None, direction_property=None,
-                      transport_change_penalty=None,
-                      start_time_seconds=None):
+                      transport_change_penalty=0):
 
 
     tgtlist = False
@@ -68,23 +68,34 @@ def dequa_shortest_distance(g, source=None, target=None, weights=None,
         else:
             pmap = u.copy_property(u.vertex_index, value_type="int64_t")
         reached = libcore.Vector_size_t()
-        time_from_source = u.new_vertex_property("double")
 
-        breakpoint()
-        lib_dequadistance.dequa_get_dists(u._Graph__graph,
-                                         int(source),
-                                         target,
-                                         _prop("v", u, dist_map),
-                                         _prop("e", u, weights),
-                                         _prop("v", u, pmap),
-                                         float(max_dist),
-                                         negative_weights, reached,
-                                         _prop("v", u, time_from_source),
-                                         _prop("e", u, time_edges),
-                                         _prop("v", u, transport_property),
-                                         _prop("e", u, timetable_property),
-                                         _prop("e", u, direction_property),
-                                         start_time_seconds)
+        touched_v_property = u.new_vertex_property("bool")
+
+        props = DequaProperties()
+        props.time_from_source = _prop("v", u, time_from_source)
+        props.time_edges = _prop("e", u, time_edges)
+        props.transport_property = _prop("v", u, transport_property)
+        props.timetable_property = _prop("e", u, timetable_property)
+        props.direction_property = _prop("e", u, direction_property)
+        props.touched_v = _prop("v", u, touched_v_property)
+    
+        if start_time is not None:
+            start_seconds = start_time.weekday() * 24 * 3600 + start_time.hour * 3600 + start_time.minute * 60 + start_time.second
+        else:
+            start_seconds = 0
+
+        # breakpoint()
+        dequa_get_dists(u._Graph__graph,
+                            int(source),
+                            target,
+                            _prop("v", u, dist_map),
+                            _prop("e", u, weights),
+                            _prop("v", u, pmap),
+                            float(max_dist),
+                            negative_weights, reached,
+                            props,
+                            start_seconds,
+                            transport_change_penalty)
     else:
         raise ValueError("Source cannot be None")
 
@@ -112,8 +123,9 @@ def dequa_shortest_path(g, source, target, weights=None, negative_weights=False,
                   pred_map=None, dag=False,
                   start_time=None, time_edges=None, transport_property=None,
                   timetable_property=None, direction_property=None,
-                  transport_change_penalty=None, start_time_seconds=None):
+                  transport_change_penalty=None):
 
+    time_from_source = g.new_vertex_property("double")
     if pred_map is None:
         if start_time is None:
             # Base graph_tool case
@@ -124,40 +136,44 @@ def dequa_shortest_path(g, source, target, weights=None, negative_weights=False,
             pred_map = dequa_shortest_distance(g, source, target, weights=weights,
                                      negative_weights=negative_weights,
                                      pred_map=True,
+                                     time_from_source=time_from_source,
                                      start_time=start_time, time_edges=time_edges, transport_property=transport_property,
                                      timetable_property=timetable_property, direction_property=direction_property,
-                                     transport_change_penalty=transport_change_penalty, start_time_seconds=start_time_seconds)[1]
+                                     transport_change_penalty=transport_change_penalty)[1]
 
     if pred_map[target] == int(target):  # no path to target
         return [], []
 
-    vlist = [target]
-    elist = []
-
-    if weights is not None:
-        max_w = weights.a.max() + 1
-    else:
-        max_w = None
-
     source = g.vertex(source)
     target = g.vertex(target)
     v = target
+    vlist = [v]
+    elist = []
+    tlist = []  # times of each edge
     while v != source:
         p = g.vertex(pred_map[v])
-        min_w = max_w
-        pe = None
-        s = None
-        for e in v.in_edges() if g.is_directed() else v.out_edges():
-            s = e.source() if g.is_directed() else e.target()
-            if s == p:
-                if weights is not None:
-                    if weights[e] < min_w:
-                        min_w = weights[e]
-                        pe = e
-                else:
-                    pe = e
-                    break
-        elist.insert(0, pe)
-        vlist.insert(0, p)
+        vlist.append(p)
+        elist.append(g.edge(v,p))
+        tlist.append(time_from_source[v]-time_from_source[p])
         v = p
-    return vlist, elist
+    vlist.reverse()
+    elist.reverse()  
+    tlist.reverse()  
+        
+        # min_w = max_w
+        # pe = None
+        # s = None
+        # for e in v.in_edges() if g.is_directed() else v.out_edges():
+        #     s = e.source() if g.is_directed() else e.target()
+        #     if s == p:
+        #         if weights is not None:
+        #             if weights[e] < min_w:
+        #                 min_w = weights[e]
+        #                 pe = e
+        #         else:
+        #             pe = e
+        #             break
+        # elist.insert(0, pe)
+        # vlist.insert(0, p)
+        # v = p
+    return vlist, elist, tlist

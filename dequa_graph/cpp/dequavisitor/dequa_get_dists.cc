@@ -29,6 +29,8 @@
 #include <boost/graph/dijkstra_shortest_paths_no_color_map.hpp>
 #include <boost/python.hpp>
 
+#include <fstream>
+
 #if (BOOST_VERSION >= 106000)
 #include <boost/math/special_functions/relative_difference.hpp>
 #endif
@@ -174,88 +176,74 @@ public:
                   typename vprop_map_t<uint8_t>::type transport_property,
                   typename eprop_map_t<vector<int32_t>>::type timetable_property,
                   typename eprop_map_t<int32_t>::type direction_property,
+                  typename vprop_map_t<uint8_t>::type touched_v,
                   double transport_change_penalty,
                   double start_time_seconds)
         : _dist_map(dist_map), _max_dist(max_dist), _inf(inf),
-          _target(target), _reached(reached),
+          _target(target), _reached(reached), // reached è touched_v di python?
           _weight(weight),
           _time_from_source(time_from_source),
           _time_edges(time_edges),
           _transport(transport_property),
           _timetable(timetable_property),
           _direction(direction_property),
+          _touched_v(touched_v),
           _transport_change_penalty(transport_change_penalty),
           _start_time_seconds(start_time_seconds) {}
 
-    ~dequa_visitor()
+    template <class Graph>
+    void discover_vertex(typename graph_traits<Graph>::vertex_descriptor u,
+                         Graph &g)
     {
-        std::cout << "DEQUA Costruttore" << "\n";
-        for (auto v : _unreached)
-        {
-            if (_dist_map[v] > _max_dist)
-                _dist_map[v] = _inf;
-        }
+        _touched_v[u] = 1;
+
     }
 
     template <class Graph>
     void examine_edge(typename graph_traits<Graph>::edge_descriptor e,
                       Graph &g)
     {
-        std::cout << "DEQUA Examine edge" << "\n";
         if (_direction[e] == source(e, g))
         {
             // Funziona! Tutto perché weight doveva essere writable edge property
             _weight[e] = _inf;
+            return;
+        }
+        if (_transport[target(e, g)] == true && _transport[source(e, g)] == false)
+        {
+            long double waiting_time = calculate_waiting_time_cpp(_timetable[e], _time_from_source[source(e,g)], _start_time_seconds);
+            _weight[e] = waiting_time;
+            double new_time = _time_from_source[source(e,g)] + waiting_time;
+            if (_touched_v[target(e,g)]) 
+            {
+                if (new_time < _time_from_source[target(e,g)])
+                {
+                    _time_from_source[target(e,g)] = new_time;
+                }
+            }
+            else 
+            {
+                _time_from_source[target(e,g)] = new_time;
+            }
         }
         else
         {
-            double new_time = _time_from_source[source(e,g)];
-            // Stai montando in battello
-            if (_transport[target(e, g)] == true && _transport[source(e, g)] == false)
-            {
-                // TODO
-                // long double waiting_time = 1; // calculate_waiting_time(e)
-                long double waiting_time = calculate_waiting_time_cpp(_timetable[e], _time_from_source[source(e,g)], _start_time_seconds);
-
-                _weight[e] = waiting_time;
-                // _time_edges[e] = waiting_time;
-
-                new_time = _time_from_source[source(e,g)] + waiting_time;
-
-                // Verifica se il nodo target è già stato "toccato" (scoperto)
-                // In assenza della mappa booleana esplicita, usiamo _dist_map != inf come proxy
-                if (_dist_map[target(e,g)] != _inf) {
-                    // Se già scoperto, prendi il minimo
-                    if (new_time < _time_from_source[target(e,g)]) {
-                        _time_from_source[target(e,g)] = new_time;
-                    }
-                } else {
-                    // Se nuovo, assegna direttamente
-                    _time_from_source[target(e,g)] = new_time;
-                }
-        
-            }
-            // Stai scendendo dal battello
-            if (_transport[source(e, g)] == true && _transport[target(e, g)] == false)
+            if (_transport[source(e,g)] == true && _transport[target(e,g)] == false)
             {
                 _weight[e] = _transport_change_penalty;
-                // _time_edges[e] = _transport_change_penalty;
-
-                new_time = _time_from_source[source(e,g)] + _time_edges[e];
-
-                // Verifica se il nodo target è già stato "toccato" (scoperto)
-                // In assenza della mappa booleana esplicita, usiamo _dist_map != inf come proxy
-                if (_dist_map[target(e,g)] != _inf) {
-                    // Se già scoperto, prendi il minimo
-                    if (new_time < _time_from_source[target(e,g)]) {
-                        _time_from_source[target(e,g)] = new_time;
-                    }
-                } else {
-                    // Se nuovo, assegna direttamente
-                    _time_from_source[target(e,g)] = new_time;
+            }
+            double new_time_smontando = _time_from_source[source(e,g)] + _time_edges[e];
+            if (_touched_v[target(e,g)])
+            {
+                if (new_time_smontando < _time_from_source[target(e,g)])
+                {
+                    _time_from_source[target(e,g)] = new_time_smontando;
                 }
             }
-            
+            else
+            {
+                _time_from_source[target(e,g)] = new_time_smontando;
+            }
         }
     }
 
@@ -263,41 +251,34 @@ public:
     template <class Graph>
     void edge_relaxed(typename graph_traits<Graph>::edge_descriptor e, Graph &g)
     {
-        std::cout << "DEQUA edge relaxed" << "\n";
+        // std::cout << "DEQUA edge relaxed" << "\n";
         // // Aggiungi il tempo al nodo target
         // _time_from_source[source(e, g)];
         if (target(e, g) == _target) {
-            std::cout << "DEQUA edge relaxed - STOP SEARCH" << "\n";
+            // std::cout << "DEQUA edge relaxed - STOP SEARCH" << "\n";
             throw stop_search();
         }
     }
 
-    template <class Graph>
-    void examine_vertex(typename graph_traits<Graph>::vertex_descriptor u,
-                        Graph &)
-    {
-        std::cout << "DEQUA examine vertex" << "\n";
-        if (_dist_map[u] > _max_dist || u == _target)
-            throw stop_search();
-    }
+    // template <class Graph>
+    // void examine_vertex(typename graph_traits<Graph>::vertex_descriptor u,
+    //                     Graph &)
+    // {
+    //     // std::cout << "DEQUA examine vertex" << "\n";
+    //     if (_dist_map[u] > _max_dist || u == _target)
+    //         throw stop_search();
+    // }
 
-    template <class Graph>
-    void discover_vertex(typename graph_traits<Graph>::vertex_descriptor u,
-                         Graph &)
-    {
-        std::cout << "DEQUA Discover vertex" << "\n";
-        if (_dist_map[u] > _max_dist)
-            _unreached.push_back(u);
-    }
+    
 
-    template <class Graph>
-    void finish_vertex(typename graph_traits<Graph>::vertex_descriptor u,
-                       Graph &)
-    {
-        std::cout << "DEQUA Finish vertex" << "\n";
-        if (_dist_map[u] <= _max_dist)
-            _reached.push_back(u);
-    }
+    // template <class Graph>
+    // void finish_vertex(typename graph_traits<Graph>::vertex_descriptor u,
+    //                    Graph &g)
+    // {
+    //     // std::cout << "DEQUA Finish vertex" << "\n";
+    //     if (_dist_map[u] <= _max_dist)
+    //         _reached.push_back(u);
+    // }
 
     // Funzione helper per il calcolo dell'attesa (può essere privata o esterna)
     template <class TimetableVec>
@@ -328,11 +309,11 @@ public:
         if (found_future) {
             return min_wait;
         } else {
-            long double first_departure = (long double)timetable_vec[0];
-            long double wait_wrap = first_departure + (TOTAL_SECONDS_IN_WEEK - current_absolute_time);
-            if (wait_wrap < 0) wait_wrap += TOTAL_SECONDS_IN_WEEK;
-            return wait_wrap;
+            long double wait_wrap = TOTAL_SECONDS_IN_WEEK - (current_time_from_source + start_time_seconds);
+            if (wait_wrap > 0)
+                return timetable_vec[0] + wait_wrap;
         }
+        return TOTAL_SECONDS_IN_WEEK;
     }
 
 private:
@@ -349,6 +330,7 @@ private:
     typename vprop_map_t<uint8_t>::type _transport;
     typename eprop_map_t<vector<int32_t>>::type _timetable;
     typename eprop_map_t<int32_t>::type _direction;
+    typename vprop_map_t<uint8_t>::type _touched_v;
     double _transport_change_penalty;
     double _start_time_seconds;
 };
@@ -368,6 +350,7 @@ struct dequa_do_djk_search
                     typename vprop_map_t<uint8_t>::type transport_property,
                     typename eprop_map_t<vector<int32_t>>::type timetable_property,
                     typename eprop_map_t<int32_t>::type direction_property,
+                    typename vprop_map_t<uint8_t>::type touched_v,
                     double transport_change_penalty,
                     double start_time_seconds) const
     {
@@ -402,8 +385,6 @@ struct dequa_do_djk_search
                 dijkstra_shortest_paths_no_color_map_no_init(g, vertex(source, g), pred_map, dist_map, aweight,
                                                              vertex_index, std::less<dist_t>(),
                                                              boost::closed_plus<dist_t>(), inf, dist_t(),
-                                                             //  djk_max_visitor<DistMap>(dist_map, max_d, inf, target,
-                                                             //                           reached));
                                                              dequa_visitor<DistMap, WeightMap>(
                                                                  dist_map, max_d, inf, target, reached,
                                                                  aweight,
@@ -412,6 +393,7 @@ struct dequa_do_djk_search
                                                                  transport_property,
                                                                  timetable_property,
                                                                  direction_property,
+                                                                 touched_v,
                                                                  transport_change_penalty,
                                                                  start_time_seconds));
             }
@@ -432,21 +414,25 @@ struct dequa_do_djk_search
     }
 };
 
+struct DequaProperties {
+    boost::any time_from_source;
+    boost::any time_edges;
+    boost::any transport_property;
+    boost::any timetable_property;
+    boost::any direction_property;
+    boost::any touched_v;
+};
+
 void dequa_get_dists(GraphInterface &gi, size_t source, boost::python::object tgt,
                      boost::any dist_map, boost::any weight, boost::any pred_map,
                      long double max_dist, bool bf, std::vector<size_t> &reached,
-                     boost::any time_from_source_in,
-                     boost::any time_edges_in,
-                     boost::any transport_property_in,
-                     boost::any timetable_property_in,
-                     boost::any direction_property_in,
-                    double start_time_seconds)
+                     DequaProperties props,
+                    double start_time_seconds,
+                    double transport_change_penalty)
 {
     typedef property_map_type ::apply<int64_t, GraphInterface::vertex_index_map_t>::type pred_map_t;
 
     pred_map_t pmap = any_cast<pred_map_t>(pred_map);
-
-    double transport_change_penalty = 1;
 
     typedef vprop_map_t<double>::type vprop_double;
     typedef eprop_map_t<double>::type eprop_double;
@@ -454,18 +440,19 @@ void dequa_get_dists(GraphInterface &gi, size_t source, boost::python::object tg
     typedef eprop_map_t<vector<int32_t>>::type eprop_vecint;
     typedef eprop_map_t<int32_t>::type eprop_int;
 
-    std::cout << "siamo qua!";
+    // std::cout << "siamo qua!";
 
-    vprop_double time_from_source = any_cast<vprop_double>(time_from_source_in);
-    eprop_double time_edges = any_cast<eprop_double>(time_edges_in);
-    vprop_bool transport_property = any_cast<vprop_bool>(transport_property_in);
-    eprop_vecint timetable_property = any_cast<eprop_vecint>(timetable_property_in);
-    eprop_int direction_property = any_cast<eprop_int>(direction_property_in);
+    vprop_double time_from_source = any_cast<vprop_double>(props.time_from_source);
+    eprop_double time_edges = any_cast<eprop_double>(props.time_edges);
+    vprop_bool transport_property = any_cast<vprop_bool>(props.transport_property);
+    vprop_bool touched_property = any_cast<vprop_bool>(props.touched_v);
+    eprop_vecint timetable_property = any_cast<eprop_vecint>(props.timetable_property);
+    eprop_int direction_property = any_cast<eprop_int>(props.direction_property);
     // vprop_double time_from_source;
     // eprop_double time_edges;
     // eprop_vecint timetable_property;
     // eprop_int direction_property;
-    std::cout << "siamo quadopo!";
+    // std::cout << "siamo quadopo!";
 
     bool dag = false;
 
@@ -498,8 +485,9 @@ void dequa_get_dists(GraphInterface &gi, size_t source, boost::python::object tg
                                                   transport_property,
                                                   timetable_property,
                                                   direction_property,
+                                                  touched_property,
                                                   transport_change_penalty,
-                                                start_time_seconds); }, 
+                                                  start_time_seconds); }, 
                                                   writable_vertex_scalar_properties(),
                                                   writable_edge_scalar_properties())(dist_map, weight);
 }
@@ -507,5 +495,12 @@ void dequa_get_dists(GraphInterface &gi, size_t source, boost::python::object tg
 BOOST_PYTHON_MODULE(lib_dequadistance)
 {
     using namespace boost::python;
+    class_<DequaProperties>("DequaProperties")
+        .def_readwrite("time_from_source", &DequaProperties::time_from_source)
+        .def_readwrite("time_edges", &DequaProperties::time_edges)
+        .def_readwrite("transport_property", &DequaProperties::transport_property)
+        .def_readwrite("timetable_property", &DequaProperties::timetable_property)
+        .def_readwrite("direction_property", &DequaProperties::direction_property)
+        .def_readwrite("touched_v", &DequaProperties::touched_v);
     def("dequa_get_dists", dequa_get_dists);
 }

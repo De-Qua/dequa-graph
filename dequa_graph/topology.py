@@ -38,6 +38,11 @@ import ipdb
 # from numbers import Number
 from datetime import timedelta
 import numpy as np
+import collections
+
+from graph_tool import _prop, _check_prop_writable, \
+     _check_prop_scalar, _check_prop_vector, \
+     PropertyMap, GraphView, libcore
 
 from graph_tool.topology import shortest_path, shortest_distance
 from graph_tool.search import dijkstra_search
@@ -47,6 +52,7 @@ from .geographic import find_closest_vertices
 from .utils import get_all_coordinates
 from .errors import NoPathFound, MultipleSourcesError, FormatError
 from .visitors import dequaVisitor
+from .dequa_path import dequa_shortest_path
 
 
 logger = set_up_logging()
@@ -55,7 +61,7 @@ logger = set_up_logging()
 def get_path(graph, vertex_start, vertex_end, vertices_stop=None, weights=None,
              use_public_transport=False, start_time=None, time_edge_property=None,
              transport_property=None, timetable_property=None, direction_property=None,
-             transport_change_penalty=0):
+             transport_change_penalty=0, use_python_version=False):
     """Calculate the shortest path that starts with the first coodinates in the
     list, make stops for each intermediate coordinates, and end with the last
     coordinates in the list.
@@ -81,7 +87,17 @@ def get_path(graph, vertex_start, vertex_end, vertices_stop=None, weights=None,
         for v in vertices_stop:
             if use_public_transport:
                 # il nuovo visitor
-                tmp_v_list_weight, tmp_e_list_weight, tmp_t_list_weight = td_shortest_path(graph, last_v, v, weight, start_time, time_edge_property, transport_property, timetable_property, direction_property, transport_change_penalty)
+                if use_python_version:
+                    tmp_v_list_weight, tmp_e_list_weight, tmp_t_list_weight = td_shortest_path(graph, last_v, v, weight, start_time, time_edge_property, transport_property, timetable_property, direction_property, transport_change_penalty)
+                else:
+                    tmp_v_list_weight, tmp_e_list_weight, tmp_t_list_weight = dequa_shortest_path(
+                        graph, last_v, v, weights=weight, 
+                        start_time=start_time, 
+                        time_edges=time_edge_property, 
+                        transport_property=transport_property, 
+                        timetable_property=timetable_property, 
+                        direction_property=direction_property, 
+                        transport_change_penalty=transport_change_penalty)
                 start_time += timedelta(seconds=sum(tmp_t_list_weight))
             else:
                 tmp_v_list_weight, tmp_e_list_weight = shortest_path(graph, last_v, v, weight)

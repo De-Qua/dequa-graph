@@ -1,22 +1,23 @@
 from datetime import datetime, timedelta
 import numpy as np
+import time
 
 from .weights import get_weight_time, get_timetables
 from .topology import td_shortest_path
+from .dequa_path import dequa_shortest_path
 from .visitors import find_closest_vertices
 from .formatting import retrieve_info_from_path_streets
 
-def test_battelli(graph, coord_source, coord_target, start_time=None, speed=5/3.6):
+def test_battelli(graph, coord_source, coord_target, start_time=None, speed=5/3.6, use_python_version=False):
     if start_time is None:
         start_time = datetime.today()
     pos = graph.vp['latlon']
     all_pos = np.array([pos[v].a for v in graph.iter_vertices()])
 
-    id_closest_vertex_source = find_closest_vertices(coord_source, all_pos)
-    id_closest_vertex_target = find_closest_vertices(coord_target, all_pos)
+    id_closest_vertex_source, id_closest_vertex_target = find_closest_vertices([coord_source, coord_target], all_pos)
 
-    source = graph.vertex(id_closest_vertex_source[0])
-    target = graph.vertex(id_closest_vertex_target[0])
+    source = graph.vertex(id_closest_vertex_source)
+    target = graph.vertex(id_closest_vertex_target)
 
     time_edge_property = get_weight_time(graph=graph, speed=speed)
     transport_property = graph.vp.transport_stop
@@ -24,12 +25,25 @@ def test_battelli(graph, coord_source, coord_target, start_time=None, speed=5/3.
     direction_property = graph.ep.direction
 
     weight = get_weight_time(graph=graph, speed=speed)
+    
+    transport_change_penalty=0
 
-    vlist, elist, tlist = td_shortest_path(graph, source, target,
-                            weight, start_time, time_edge_property,
-                            transport_property, timetable_property, direction_property)
-
-
+    time_start = time.time()
+    if use_python_version:
+        vlist, elist, tlist = td_shortest_path(graph, source, target,
+                                weight, start_time, time_edge_property,
+                                transport_property, timetable_property, direction_property, transport_change_penalty)
+    else:
+        vlist, elist, tlist = dequa_shortest_path(
+                        graph, source, target, weights=weight, 
+                        start_time=start_time, 
+                        time_edges=time_edge_property, 
+                        transport_property=transport_property, 
+                        timetable_property=timetable_property, 
+                        direction_property=direction_property, 
+                        transport_change_penalty=transport_change_penalty)
+    computation_time = time.time() - time_start
+    
     info = retrieve_info_from_path_streets(
         graph=graph, paths_vertices=[[vlist]], paths_edges=[[elist]],
         times_edges=[[tlist]], start_time=start_time)
@@ -56,3 +70,4 @@ def test_battelli(graph, coord_source, coord_target, start_time=None, speed=5/3.
     tot_elapsed_time = timedelta(seconds=sum(tlist))
     print(f"Arrivo a {target}: {start_time+tot_elapsed_time}")
     print(f"Il percorso è durato {tot_elapsed_time}")
+    print(f"La ricerca ha impiegato {computation_time}s")

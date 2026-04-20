@@ -14,6 +14,7 @@ from dequa_graph.utils import load_graphs, get_all_coordinates
 from dequa_graph.weights import get_weight_time, get_timetables
 from dequa_graph.visitors import dequaVisitor
 from dequa_graph.topology import calculate_path, td_shortest_path
+from dequa_graph.plot import draw_gt_paths
 
 import func_gt as fgt
 from dequa_path import dequa_shortest_path
@@ -58,7 +59,10 @@ print("--- Test 2: Battelli ---")
 print("Partenza: San Polo 1424")
 print("Arrivo: Giudecca 123")
 input_start = (12.331366701765935, 45.436707400204234) # san polo 1424
-input_start = (12.352622145543, 45.45463988978711) # Murano 123
+# input_start = (12.3231672, 45.4258562)
+# input_end = (12.352622145543, 45.45463988978711) # Murano 123
+# input_end = (12.357022348829444, 45.434129454831535) # castello 123
+
 input_end = (12.334255256862335, 45.42508669583883) # giudecca 123
 # input_start = (12.326875851106916, 45.42934654038481) # zattere
 # input_end = (12.325463808142006, 45.42656387430435) # palanca
@@ -106,5 +110,9 @@ print(f">> C++ shortest_path: {time_new_elapsed:.03f} seconds")
 print(f"I vertici sono uguali? {old_v == new_v}")
 print(f"Gli edge sono uguali? {old_e == new_e}")
 print(f"Tempo di percorrenza (nuovo - vecchio): {sum(new_t) - sum(old_t)} s")
+
+# plot
+draw_gt_paths([old_v, new_v], gt_pos_land_prop, labels=["Python", "C++"])
+# draw_gt_path(new_v, gt_pos_land_prop)
 
 # breakpoint()

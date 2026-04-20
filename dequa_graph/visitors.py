@@ -3,13 +3,15 @@ import numpy as np
 from graph_tool import load_graph
 from graph_tool.search import dijkstra_search, DijkstraVisitor, StopSearch
 import time
-import ipdb
+# import ipdb
 from .weights import get_weight_time
 
 speed = 5/3.6
 
 TOTAL_SECONDS_IN_WEEK = 24*7*3600
 
+# import sys
+# log = open("python_log.txt", "a")
 
 class dequaVisitor(DijkstraVisitor):
 
@@ -39,6 +41,9 @@ class dequaVisitor(DijkstraVisitor):
         # andando in pontile, metto il tempo d'attesa
         # if self.direction[e] == e.target():
         #     ipdb.set_trace()
+        # print(f"=== EXAMINE EDGE ===", file=log)
+        # print(f"source={e.source()} target={e.target()} weight={self.weight[e]} time_src={self.time_from_source[e.source()]} time_trg={self.time_from_source[e.target()]}", file=log)
+        # log.flush()
         if self.direction[e] == e.source():
             self.weight[e] = np.inf
             return

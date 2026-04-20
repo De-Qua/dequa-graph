@@ -33,3 +33,4 @@ from . import weights
 from . import errors
 from . import lib_gtfs
 from . import visitors
+from . import plot

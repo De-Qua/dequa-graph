@@ -203,6 +203,10 @@ public:
     void examine_edge(typename graph_traits<Graph>::edge_descriptor e,
                       Graph &g)
     {
+        // std::ofstream log("cpp_log.txt", std::ios::app);
+        // log << "=== EXAMINE EDGE ===" << std::endl;
+        // log << "source=" << source(e,g) << " target=" << target(e,g) << " weight=" << _weight[e] << " time_src=" << _time_from_source[source(e,g)] << " time_trg=" << _time_from_source[target(e,g)] << std::endl;
+        // log.close();
         if (_direction[e] == source(e, g))
         {
             // Funziona! Tutto perché weight doveva essere writable edge property
@@ -211,7 +215,7 @@ public:
         }
         if (_transport[target(e, g)] == true && _transport[source(e, g)] == false)
         {
-            long double waiting_time = calculate_waiting_time_cpp(_timetable[e], _time_from_source[source(e,g)], _start_time_seconds);
+            double waiting_time = calculate_waiting_time_cpp(_timetable[e], _time_from_source[source(e,g)], _start_time_seconds);
             _weight[e] = waiting_time;
             double new_time = _time_from_source[source(e,g)] + waiting_time;
             if (_touched_v[target(e,g)]) 
@@ -282,22 +286,22 @@ public:
 
     // Funzione helper per il calcolo dell'attesa (può essere privata o esterna)
     template <class TimetableVec>
-    long double calculate_waiting_time_cpp(const TimetableVec& timetable_vec, 
-                                           long double current_time_from_source,
-                                            long double start_time_seconds) const
+    double calculate_waiting_time_cpp(const TimetableVec& timetable_vec, 
+                                           double current_time_from_source,
+                                            double start_time_seconds) const
     {
         if (timetable_vec.size() == 0) {
             return TOTAL_SECONDS_IN_WEEK;
         }
 
-        long double current_absolute_time = current_time_from_source + _start_time_seconds;
-        long double moduled_week_time = fmod(current_absolute_time, TOTAL_SECONDS_IN_WEEK);
+        double current_absolute_time = current_time_from_source + _start_time_seconds;
+        double moduled_week_time = fmod(current_absolute_time, TOTAL_SECONDS_IN_WEEK);
         
-        long double min_wait = TOTAL_SECONDS_IN_WEEK;
+        double min_wait = TOTAL_SECONDS_IN_WEEK;
         bool found_future = false;
 
         for (int32_t departure_time : timetable_vec) {
-            long double diff = (long double)departure_time - moduled_week_time;
+            double diff = (double)departure_time - moduled_week_time;
             if (diff > 0) {
                 if (diff < min_wait) {
                     min_wait = diff;

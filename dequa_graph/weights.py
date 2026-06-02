@@ -76,10 +76,12 @@ def get_weight(graph, mode='walk', speed=5/3.6, avoid_bridges=False, avoid_tide=
     elif mode == 'boat':
         if motor_boat:
             weight = get_weight_motorboat(graph=graph, speed=boat_speed,
-                                          width=boat_width, height=boat_height)
+                                          boat_width=boat_width, boat_height=boat_height,
+                                          start_time=starting_hour, tide_level=tide_level)
         else:
             weight = get_weight_rowboat(graph=graph, speed=boat_speed,
-                                        width=boat_width, height=boat_height)
+                                        boat_width=boat_width, boat_height=boat_height, 
+                                        start_time=starting_hour, tide_level=tide_level)
     else:
         raise ValueError(f"Mode {mode} not implemented")
 
@@ -198,20 +200,67 @@ def get_weight_tide(graph, tide_level, weight=None, high_tide_multiplier=10000,
 #
 
 
-def get_weight_rowboat(graph, speed=5/3.6, width=0, height=0, dimension_multiplier=1e6):
-    """Returns a graph edge property that can be used in searching the shortest path in a water graph.
+def get_weight_rowboat(graph, speed=5/3.6, boat_width=0, boat_height=0, 
+                       start_time=None, tide_level=None, 
+                       moto_ondoso_multiplier=10, dimension_multiplier=1e6):
+    """
+    Returns a graph edge property that can be used in searching the shortest path in a water graph.
     Weights correspond to the time of each edge (length/speed).
-    Since rowboat do not have any restriction all the canals are allowed, and the graph is considered undirected.
+
+    Since rowing boats do not have any restriction all the canals are allowed, 
+    and the graph is considered undirected.
+    =====================================================================
+    Params:
+        - speed is used to calculate the time to move
+        - boat_width to avoid narrower canals
+        - boat_height to avoid some canals depending on the tide (very unlikely for rowing boats)
+        
+        -----------------------
+        Multipliers
+        -----------------------
+        - moto_ondoso_multiplier: manually defined values, which raises the weight of canals with 
+                                lots of waves which are usually harder to navigate by rowing
+                                (the `moto_ondoso` value goes from 0 to 10)
+
+        - dimention_multiplier: a very high value which raises the weight of the canals which 
+                            should be `excluded` - but if it's the only possibility they can be 
+                            chosen anyway (risky but practical solution)
+        
+        -----------------------
+        not used now, maybe used in the future
+        -----------------------
+        - tide_level to check if the boat can pass below bridges
+        - start_time for later if we want to 
+            - estimate tide if tide is not given
+            - estimate water current  
     """
     graph_row = GraphView(graph, directed=False)
     weight = get_weight_time(graph=graph_row, speed=speed, exclude_duration=True)
 
     # exclude small canals (big multiplier to avoid problem if the path starts from there)
-    can_width = graph_row.ep['larghezza'].a+0
-    can_width[can_width == 0] = np.inf
-    weight.a[can_width < width] += dimension_multiplier
+    canal_width = graph_row.ep['larghezza'].a+0
+    canal_width[canal_width == 0] = np.inf
+    weight.a[canal_width < boat_width] += dimension_multiplier
+
     # exclude low canals (big multiplier to avoid problem if the path starts from there)
-    weight.a[graph_row.ep['altezza'].a < height] += dimension_multiplier
+    weight.a[graph_row.ep['altezza'].a < boat_height] += dimension_multiplier
+
+    # ===============================================
+    # `moto_ondoso` value goes from 0 to 10
+    # - canale della giudecca: 10
+    # - bacino: 8
+    # - canal grande: 5
+    # - canale di cannaregio: 6
+    # - canale di tessera (da fuori f.te nove a murano): 9
+    # - canale di tessera (da murano a campalto): 6
+    # - canal grande di murano: 3
+    # - rio di noale: 7
+    # - rio novo: 7
+    # - rio ca' foscari (da incrocio con rio novo fino a c.grande): 6
+    # 
+    # if `moto_ondoso` is 0, the weight remains the same
+    # if `moto_ondoso` is > 0, the weight increase 
+    weight.a += weight.a[graph_row.ep['moto_ondoso']] * moto_ondoso_multiplier
 
     return weight
 
@@ -239,9 +288,9 @@ def get_weight_motorboat(graph, speed=5/3.6, start_time=None, type="private", wi
     # exclude rii blu (big multiplier to avoid problem if the path starts from there)
     weight.a += graph.ep['solo_remi'].a * rio_blu_multiplier
     # exclude small canals (big multiplier to avoid problem if the path starts from there)
-    can_width = graph.ep['larghezza'].a+0
-    can_width[can_width == 0] = np.inf
-    weight.a[can_width < width] += dimension_multiplier
+    canal_width = graph.ep['larghezza'].a+0
+    canal_width[canal_width == 0] = np.inf
+    weight.a[canal_width < width] += dimension_multiplier
     # exclude low canals (big multiplier to avoid problem if the path starts from there)
     weight.a[graph.ep['altezza'].a < height] += dimension_multiplier
 

@@ -169,7 +169,7 @@ def calculate_path(graph, coords_start, coords_end, coords_stop=None,
                    weight=None, all_vertices=np.ndarray(0),
                    use_public_transport=False, start_time=None, time_edge_property=None,
                    transport_property=None, timetable_property=None, direction_property=None,
-                   transport_change_penalty=0):
+                   transport_change_penalty=0, use_python_version=False):
     """Calculate the shortest path between two coordinates."""
     # if all_vertices.size == 0:
     #     all_vertices = get_all_coordinates(graph)
@@ -181,7 +181,8 @@ def calculate_path(graph, coords_start, coords_end, coords_stop=None,
                                       use_public_transport, start_time,
                                       time_edge_property, transport_property,
                                       timetable_property, direction_property,
-                                      transport_change_penalty)
+                                      transport_change_penalty,
+                                      use_python_version=use_python_version)
     return v_list, e_list, t_list
 
 

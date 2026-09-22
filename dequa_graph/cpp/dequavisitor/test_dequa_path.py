@@ -19,11 +19,10 @@ from dequa_graph.plot import draw_gt_paths
 import func_gt as fgt
 from dequa_path import dequa_shortest_path
 
-# breakpoint()
-
-graph_path = Path('graph_waterbus.gt')
+graph_path = Path('graph_waterbus3.gt')
 graph = load_graphs(graph_path)
 
+breakpoint()
 # Lat e lon dei vertici è una proprietà dei vertici
 gt_pos_land_prop = graph.vp['latlon']
 gt_pos_land = np.array([gt_pos_land_prop[v].a for v in graph.iter_vertices()])
@@ -76,7 +75,7 @@ walk_speed = 5/3.6
 print(f"Speed: {walk_speed:.2f} m/s")
 transport_change_penalty = 0
 print(f"Transport change penalty: {transport_change_penalty}")
-start_time = dt.datetime(2022, 12, 1, 12, 0, 0)
+start_time = dt.datetime(2026, 9, 21, 23, 0, 0)
 print(f"Start time: {start_time}")
 
 time_edge_property = get_weight_time(graph=graph, speed=walk_speed)
@@ -111,8 +110,38 @@ print(f"I vertici sono uguali? {old_v == new_v}")
 print(f"Gli edge sono uguali? {old_e == new_e}")
 print(f"Tempo di percorrenza (nuovo - vecchio): {sum(new_t) - sum(old_t)} s")
 
+# print("> Wrapper nuovo: calculate path use_python_version=False")
+# # Bisogna ridefinire i weight!!! perché il dijkstra time dependent li modifica!!
+# weight_t = get_weight_time(graph)
+# time_edge_property = get_weight_time(graph=graph, speed=walk_speed)
+# time_new = time.time()
+
+# cpp_v_list, cpp_e_list, cpp_t_list = calculate_path(
+#                 graph=graph,
+#                 coords_start=input_start,
+#                 coords_end=input_end,
+#                 coords_stop=[],
+#                 weight=[weight_t],
+#                 all_vertices=gt_pos_land,
+#                 use_public_transport=True,
+#                 start_time=start_time,
+#                 time_edge_property=time_edge_property,
+#                 transport_property=transport_property,
+#                 timetable_property=timetable_property,
+#                 direction_property=direction_property,
+#                 transport_change_penalty=transport_change_penalty,
+#                 use_python_version=False
+#             )
+# time_new_elapsed = time.time() - time_new
+
+# print(f">> C++ shortest_path: {time_new_elapsed:.03f} seconds")
+
+# print(f"I vertici sono uguali? {tmp_v_list == new_v}")
+# print(f"Gli edge sono uguali? {tmp_e_list == new_e}")
+
+
+breakpoint()
 # plot
 draw_gt_paths([old_v, new_v], gt_pos_land_prop, labels=["Python", "C++"])
 # draw_gt_path(new_v, gt_pos_land_prop)
 
-# breakpoint()

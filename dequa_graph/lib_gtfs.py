@@ -362,7 +362,7 @@ def restrict_feed_to_dates(feed, start_date=None, end_date=None):
     feed.calendar.start_date = start_date
     feed.calendar.end_date = end_date
     special_services = []
-    if feed.calendar_dates.any():
+    if not feed.calendar_dates.empty:
         feed.calendar_dates = feed.calendar_dates.loc[(feed.calendar_dates.date >= start_date) & (feed.calendar_dates.date <= end_date)]
         special_services = feed.calendar_dates.service_id.values
     feed.trips = feed.trips.loc[(feed.trips.service_id.isin(feed.calendar.service_id)) | (feed.trips.service_id.isin(special_services))]

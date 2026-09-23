@@ -404,4 +404,5 @@ def load_multiple_feeds(*paths):
                 restricted_feeds.append(new_feed)
         else:
             restricted_feeds.append(feed_1)
+    restricted_feeds.append(feeds[-1])
     return restricted_feeds

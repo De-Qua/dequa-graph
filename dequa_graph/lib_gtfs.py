@@ -22,6 +22,9 @@ def load_feed(path):
     feed = gk.read_feed(path, dist_units="km")
     # feed.validate()
     # feed.describe()
+    # Remove route short names from stop times since it is useless and it creates problems later
+    if "route_short_name" in feed.stop_times.columns:
+        feed.stop_times = feed.stop_times.drop(columns=["route_short_name"])
     # convert dates
     feed.stop_times.loc[:, "arrival_time"] = pd.to_timedelta(
         feed.stop_times["arrival_time"])
@@ -200,7 +203,7 @@ def get_route_sequence(feed, route_id):
     route_df = stop_routes_trip.merge(feed.stop_times, on="trip_id")
     route_df["start_stop_id"] = route_df["stop_id"]
     route_df = route_df.merge(
-        feed.routes[["route_id", "route_color", "route_text_color"]],
+        feed.routes[["route_id", "route_short_name", "route_color", "route_text_color"]],
         on='route_id')
     return route_df[["route_id", "route_short_name",  "stop_sequence", "pickup_type", "drop_off_type", "start_stop_id", "end_stop_id", "duration", "route_color", "route_text_color", "geometry"]]
 

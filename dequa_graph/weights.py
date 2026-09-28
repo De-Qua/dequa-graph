@@ -265,7 +265,10 @@ def get_weight_rowboat(graph, speed=5/3.6, boat_width=0, boat_height=0,
     return weight
 
 
-def get_weight_motorboat(graph, speed=5/3.6, start_time=None, type="private", boat_width=0, boat_height=0, rio_blu_multiplier=1e6, dimension_multiplier=1e6):
+def get_weight_motorboat(graph, speed=5/3.6,
+                         type="private", boat_width=0, boat_height=0, 
+                         start_time=None, tide_level=None, 
+                         rio_blu_multiplier=1e6, dimension_multiplier=1e6):
     """Returns a graph edge property that can be used in searching the shortest path in a water graph.
     Weights correspond to the time of each edge (length/speed).
     Speed is calculated as the minimum between the speed of the boat and the limit of the canals.

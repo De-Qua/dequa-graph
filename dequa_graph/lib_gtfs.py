@@ -22,6 +22,9 @@ def load_feed(path):
     feed = gk.read_feed(path, dist_units="km")
     # feed.validate()
     # feed.describe()
+    # Remove route short names from stop times since it is useless and it creates problems later
+    if "route_short_name" in feed.stop_times.columns:
+        feed.stop_times = feed.stop_times.drop(columns=["route_short_name"])
     # convert dates
     feed.stop_times.loc[:, "arrival_time"] = pd.to_timedelta(
         feed.stop_times["arrival_time"])
@@ -74,9 +77,9 @@ def convert_departure_to_array(time_info, feed):
             day_after = unique_date + np.timedelta64(1, 'D')
             exception_period = [day_before, unique_date, day_after]
             # filter the calendar excluding services that are not included in our dates
-            calendar = calendar_exceptions[(calendar_exceptions.start_date <= exception_period[-1]) & (calendar_exceptions.end_date >= exception_period[0])]
+            calendar = calendar_exceptions[(calendar_exceptions.start_date <= exception_period[-1]) & (calendar_exceptions.end_date >= exception_period[0])].copy()
             # get from the calendar_dates, the service in the exception period that should be removed
-            dates_to_remove = feed.calendar_dates[(feed.calendar_dates.date.isin(exception_period)) & (feed.calendar_dates.exception_type == 2)]
+            dates_to_remove = feed.calendar_dates[(feed.calendar_dates.date.isin(exception_period)) & (feed.calendar_dates.exception_type == 2)].copy()
             # get the weekday of the dates to remove
             dates_to_remove["weekday"] = WEEKDAYS[dates_to_remove.date.dt.weekday]
             # remove the service for that single day
@@ -107,7 +110,7 @@ def create_calendar_exceptions(feed):
     Formats the calendar dates better as the calendar exceptions we need.
     It contains stadnard and exceptional fares.
     """
-    new_dates = feed.calendar_dates.loc[feed.calendar_dates["exception_type"] == 1, :]
+    new_dates = feed.calendar_dates.loc[feed.calendar_dates["exception_type"] == 1, :].copy()
     n_original_col = len(new_dates.columns)
     new_dates[WEEKDAYS] = 0
     new_dates["start_date"] = new_dates.date
@@ -200,7 +203,8 @@ def get_route_sequence(feed, route_id):
     route_df = stop_routes_trip.merge(feed.stop_times, on="trip_id")
     route_df["start_stop_id"] = route_df["stop_id"]
     route_df = route_df.merge(
-        feed.routes[["route_id", "route_short_name", "route_color", "route_text_color"]])
+        feed.routes[["route_id", "route_short_name", "route_color", "route_text_color"]],
+        on='route_id')
     return route_df[["route_id", "route_short_name",  "stop_sequence", "pickup_type", "drop_off_type", "start_stop_id", "end_stop_id", "duration", "route_color", "route_text_color", "geometry"]]
 
 
@@ -209,7 +213,7 @@ def get_all_routes_id(feed):
 
 
 def check_stops_coordinates(feed, pos):
-    return [x for x, y, z in feed.stops[["stop_id", "stop_lon", "stop_lat"]].values if not np.where((pos[:, 0] == y) & (pos[:, 1] == z))[0]]
+    return [x for x, y, z in feed.stops[["stop_id", "stop_lon", "stop_lat"]].values if np.where((pos[:, 0] == y) & (pos[:, 1] == z))[0].size == 0]
 
 
 def get_stop_coordinates(feed, stop_id):
@@ -292,7 +296,7 @@ def create_stops_for_round_trips(feed):
         # check if the new stop is already present in the dataframe
         if len(feed.stops[feed.stops["stop_id"] == new_id]) == 0:
             # find the original stop
-            original_stop = feed.stops[feed.stops["stop_id"] == stop_id]
+            original_stop = feed.stops[feed.stops["stop_id"] == stop_id].copy()
             # change the id
             original_stop["stop_id"] = new_id
             # append the new stop to the dataframe
@@ -357,11 +361,11 @@ def restrict_feed_to_dates(feed, start_date=None, end_date=None):
         included_days = np.arange(start=starting_day, stop=starting_day+duration_in_days) % 7
         excluded_days = [day for idx, day in enumerate(WEEKDAYS) if idx not in included_days]
         feed.calendar.loc[:, excluded_days] = 0
-        feed.calendar = feed.calendar.loc[~(feed.calendar.loc[:, WEEKDAYS] == 0).all(axis=1)]
+        feed.calendar = feed.calendar.loc[~(feed.calendar.loc[:, WEEKDAYS] == 0).all(axis=1)].copy()
     feed.calendar.start_date = start_date
     feed.calendar.end_date = end_date
     special_services = []
-    if feed.calendar_dates:
+    if not feed.calendar_dates.empty:
         feed.calendar_dates = feed.calendar_dates.loc[(feed.calendar_dates.date >= start_date) & (feed.calendar_dates.date <= end_date)]
         special_services = feed.calendar_dates.service_id.values
     feed.trips = feed.trips.loc[(feed.trips.service_id.isin(feed.calendar.service_id)) | (feed.trips.service_id.isin(special_services))]
@@ -403,4 +407,5 @@ def load_multiple_feeds(*paths):
                 restricted_feeds.append(new_feed)
         else:
             restricted_feeds.append(feed_1)
+    restricted_feeds.append(feeds[-1])
     return restricted_feeds

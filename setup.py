@@ -71,7 +71,7 @@ if requirement_path.exists():
 
 setuptools.setup(
     name="dequa_graph",
-    version="1.0.0",
+    version="1.1.0",
     author="DeQua",
     author_email="info@dequa.it",
     description="Graph library used by DeQua",

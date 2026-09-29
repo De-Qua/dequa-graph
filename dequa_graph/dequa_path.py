@@ -124,7 +124,6 @@ def dequa_shortest_path(g, source, target, weights=None, negative_weights=False,
                   start_time=None, time_edges=None, transport_property=None,
                   timetable_property=None, direction_property=None,
                   transport_change_penalty=None):
-
     time_from_source = g.new_vertex_property("double")
     if pred_map is None:
         if start_time is None:
@@ -142,7 +141,7 @@ def dequa_shortest_path(g, source, target, weights=None, negative_weights=False,
                                      transport_change_penalty=transport_change_penalty)[1]
 
     if pred_map[target] == int(target):  # no path to target
-        return [], []
+        return [], [], []
 
     source = g.vertex(source)
     target = g.vertex(target)

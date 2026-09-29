@@ -202,7 +202,8 @@ def get_weight_tide(graph, tide_level, weight=None, high_tide_multiplier=10000,
 
 def get_weight_rowboat(graph, speed=5/3.6, boat_width=0, boat_height=0, 
                        start_time=None, tide_level=None, 
-                       moto_ondoso_multiplier=10, dimension_multiplier=1e6):
+                       moto_ondoso_multiplier=10, dimension_multiplier=1e6,
+                       nan_replacement=1e9):
     """
     Returns a graph edge property that can be used in searching the shortest path in a water graph.
     Weights correspond to the time of each edge (length/speed).
@@ -260,18 +261,24 @@ def get_weight_rowboat(graph, speed=5/3.6, boat_width=0, boat_height=0,
     # 
     # if `moto_ondoso` is 0, the weight remains the same
     # if `moto_ondoso` is > 0, the weight increase 
-    weight.a += weight.a[graph_row.ep['moto_ondoso']] * moto_ondoso_multiplier
+    # Check if property exists before accessing
+    if 'motoondoso' in graph_row.ep:
+        weight.a += graph_row.ep['motoondoso'].a * moto_ondoso_multiplier    
+
+    weight.a[np.isnan(weight.a)] = nan_replacement
 
     return weight
 
 
-def get_weight_motorboat(graph, speed=5/3.6, start_time=None, type="private", width=0, height=0, rio_blu_multiplier=1e6, dimension_multiplier=1e6):
+def get_weight_motorboat(graph, speed=5/3.6, start_time=None, type="private", boat_width=0, boat_height=0, 
+                         rio_blu_multiplier=1e6, dimension_multiplier=1e6, tide_level=None, nan_replacement=1e9):
     """Returns a graph edge property that can be used in searching the shortest path in a water graph.
     Weights correspond to the time of each edge (length/speed).
     Speed is calculated as the minimum between the speed of the boat and the limit of the canals.
     Boat type can be "private" (default) or "taxi". This will change the speed limit.
     Rii blu are excluded (big multiplier to avoid problem if the path starts there).
     Canals with a width (or height) greater than the width (or height) of the boat are excluded (big multiplier to avoid problem if the path starts there).
+    -- Tide level not used for now
     """
     weight = get_weight_length(graph)
 
@@ -290,9 +297,11 @@ def get_weight_motorboat(graph, speed=5/3.6, start_time=None, type="private", wi
     # exclude small canals (big multiplier to avoid problem if the path starts from there)
     canal_width = graph.ep['larghezza'].a+0
     canal_width[canal_width == 0] = np.inf
-    weight.a[canal_width < width] += dimension_multiplier
+    weight.a[canal_width < boat_width] += dimension_multiplier
     # exclude low canals (big multiplier to avoid problem if the path starts from there)
-    weight.a[graph.ep['altezza'].a < height] += dimension_multiplier
+    weight.a[graph.ep['altezza'].a < boat_height] += dimension_multiplier
+
+    weight.a[np.isnan(weight.a)] = nan_replacement
 
     return weight
 

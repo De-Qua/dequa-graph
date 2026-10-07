@@ -3,9 +3,9 @@
 import numpy as np
 import time
 
-from . import set_up_logging
+import logging
 
-logger = set_up_logging()
+logger = logging.getLogger(__name__)
 
 
 def distance_from_a_list_of_geo_coordinates(thePoint, coordinates_list):

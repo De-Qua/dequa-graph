@@ -47,7 +47,6 @@ from graph_tool import _prop, _check_prop_writable, \
 from graph_tool.topology import shortest_path, shortest_distance
 from graph_tool.search import dijkstra_search
 
-from . import set_up_logging
 from .geographic import find_closest_vertices
 from .utils import get_all_coordinates
 from .errors import NoPathFound, MultipleSourcesError, FormatError
@@ -55,7 +54,9 @@ from .visitors import dequaVisitor
 from .dequa_path import dequa_shortest_path
 
 
-logger = set_up_logging()
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_path(graph, vertex_start, vertex_end, vertices_stop=None, weights=None,

@@ -13,10 +13,11 @@ from graph_tool.topology import label_components
 import ipdb
 import io
 # IMPORT OUR LIBRARIES
-from . import set_up_logging
 from . import lib_gtfs as gtfs
 
-logger = set_up_logging()
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def load_graphs(*paths_gt_graphs):

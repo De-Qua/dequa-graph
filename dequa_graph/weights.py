@@ -42,6 +42,7 @@ import numpy as np
 import datetime as dt
 
 from graph_tool import GraphView
+from graph_tool.util import find_edge
 
 
 def get_weight(graph, mode='walk', speed=5/3.6, avoid_bridges=False, avoid_tide=False, tide_level=80, boots_height=0,
@@ -78,6 +79,9 @@ def get_weight(graph, mode='walk', speed=5/3.6, avoid_bridges=False, avoid_tide=
             weight = get_weight_motorboat(graph=graph, speed=boat_speed,
                                           boat_width=boat_width, boat_height=boat_height,
                                           start_time=starting_hour, tide_level=tide_level)
+            # weight = get_weight_vvf(graph=graph, speed=boat_speed,
+            #                               boat_width=boat_width, boat_height=boat_height,
+            #                               start_time=starting_hour, tide_level=tide_level)
         else:
             weight = get_weight_rowboat(graph=graph, speed=boat_speed,
                                         boat_width=boat_width, boat_height=boat_height, 
@@ -300,6 +304,62 @@ def get_weight_motorboat(graph, speed=5/3.6, start_time=None, type="private", bo
     weight.a[canal_width < boat_width] += dimension_multiplier
     # exclude low canals (big multiplier to avoid problem if the path starts from there)
     weight.a[graph.ep['altezza'].a < boat_height] += dimension_multiplier
+
+    weight.a[np.isnan(weight.a)] = nan_replacement
+
+    return weight
+
+def get_weight_vvf(graph, speed=5/3.6, start_time=None, type="vvf", boat_width=0, boat_height=0, 
+                         rio_blu_multiplier=1e6, rio_multiplier=1e6, dimension_multiplier=1e6, tide_level=None, nan_replacement=1e9):
+    """Returns a graph edge property that can be used in searching the shortest path in a water graph.
+    Weights correspond to the time of each edge (length/speed).
+    Speed is calculated as the minimum between the speed of the boat and the limit of the canals.
+    Boat type can be "private" (default) or "taxi". This will change the speed limit.
+    Rii blu are excluded (big multiplier to avoid problem if the path starts there).
+    Canals with a width (or height) greater than the width (or height) of the boat are excluded (big multiplier to avoid problem if the path starts there).
+    -- Tide level not used for now
+    """
+    weight = get_weight_length(graph)
+
+    # speed limits
+    if type == "private":
+        speed = np.minimum(speed, graph.ep['vel_max'].a/3.6)
+    elif type == "taxi":
+        speed = np.minimum(speed, graph.ep['vel_max_mp'].a/3.6)
+    else:
+        speed = np.minimum(speed, graph.ep['vel_max'].a/3.6)
+
+    weight.a /= speed
+
+    # exclude rii blu (big multiplier to avoid problem if the path starts from there)
+    weight.a += graph.ep['solo_remi'].a * rio_blu_multiplier
+    # exclude small canals (big multiplier to avoid problem if the path starts from there)
+    canal_width = graph.ep['larghezza'].a+0
+    canal_width[canal_width == 0] = np.inf
+    weight.a[canal_width < boat_width] += dimension_multiplier
+    # exclude low canals (big multiplier to avoid problem if the path starts from there)
+    weight.a[graph.ep['altezza'].a < boat_height] += dimension_multiplier
+    
+    # Vigili del fuoco
+    name = graph.ep['nome'] # per le stringhe
+    # # loop per cercare gli archi che hanno come nome 
+    # for e in find_edge(graph, name, 'GRANDE'):
+    #     weight[e] = 0
+
+    # anche loop piu facile se serve
+    canali_vvf = [
+        "GRANDE", 
+        "DE LA GIUDECCA", 
+        "DE SAN MARCO",
+        "DE SAN GIORGIO",
+        "DE CANNARAGIO",
+        "DE NOAL - CANALE DE LA MISERICORDIA",
+        "NOVO",
+        "DE CA' FOSCARI"
+        ]
+    for e in graph.edges():
+        if name[e] not in canali_vvf:
+            weight[e] *= rio_multiplier
 
     weight.a[np.isnan(weight.a)] = nan_replacement
 

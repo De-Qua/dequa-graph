@@ -426,7 +426,7 @@ def retrieve_info_from_path_streets(graph, paths_vertices, paths_edges, start_ti
 
 
 def retrieve_info_from_path_water(graph, paths_vertices, paths_edges, start_time,
-                                  boat_speed=5, times_edges=None, motor=False, **kwargs):
+                                  boat_speed=5, times_edges=None, motor=False, boat_type="row", **kwargs):
     """Retrieve useful informations from the output of a path of canals (list
     of list of vertices and edges). The length of the two lists corresponds to
     the number of paths, i.e. if there are no stops betweem the start and the
@@ -468,7 +468,7 @@ def retrieve_info_from_path_water(graph, paths_vertices, paths_edges, start_time
                 "distance":     0,
                 "duration":     0,
                 'start_time':   intermediate_start_time.strftime("%Y-%m-%dT%H:%M:%S"),
-                "boat_type":    "motor" if motor else "row"
+                "boat_type":    boat_type
             }
 
             time_at_edge = intermediate_start_time

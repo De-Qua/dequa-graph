@@ -47,7 +47,7 @@ from graph_tool.util import find_edge
 
 def get_weight(graph, mode='walk', speed=5/3.6, avoid_bridges=False, avoid_tide=False, tide_level=80, boots_height=0,
                starting_hour=None, prefer_public_transport=False,
-               boat_speed=5/3.6, motor_boat=False,
+               boat_speed=5/3.6, boat_type="row",
                boat_width=0, boat_height=0):
     """
     Helper function to get the correct weight base on the requested mode and the other variables.
@@ -75,13 +75,19 @@ def get_weight(graph, mode='walk', speed=5/3.6, avoid_bridges=False, avoid_tide=
         # else:
         #     return get_weight_time(graph=graph, speed=speed)
     elif mode == 'boat':
-        if motor_boat:
+        if boat_type == "motor" or boat_type == "private":
             weight = get_weight_motorboat(graph=graph, speed=boat_speed,
+                                          boat_type=boat_type,
                                           boat_width=boat_width, boat_height=boat_height,
                                           start_time=starting_hour, tide_level=tide_level)
             # weight = get_weight_vvf(graph=graph, speed=boat_speed,
             #                               boat_width=boat_width, boat_height=boat_height,
             #                               start_time=starting_hour, tide_level=tide_level)
+        elif boat_type == "vvf":
+            weight = get_weight_vvf(graph=graph, speed=boat_speed,
+                                        boat_type=boat_type,
+                                        boat_width=boat_width, boat_height=boat_height, 
+                                        start_time=starting_hour, tide_level=tide_level)
         else:
             weight = get_weight_rowboat(graph=graph, speed=boat_speed,
                                         boat_width=boat_width, boat_height=boat_height, 
@@ -274,7 +280,7 @@ def get_weight_rowboat(graph, speed=5/3.6, boat_width=0, boat_height=0,
     return weight
 
 
-def get_weight_motorboat(graph, speed=5/3.6, start_time=None, type="private", boat_width=0, boat_height=0, 
+def get_weight_motorboat(graph, speed=5/3.6, start_time=None, boat_type="private", boat_width=0, boat_height=0, 
                          rio_blu_multiplier=1e6, dimension_multiplier=1e6, tide_level=None, nan_replacement=1e9):
     """Returns a graph edge property that can be used in searching the shortest path in a water graph.
     Weights correspond to the time of each edge (length/speed).
@@ -287,9 +293,9 @@ def get_weight_motorboat(graph, speed=5/3.6, start_time=None, type="private", bo
     weight = get_weight_length(graph)
 
     # speed limits
-    if type == "private":
+    if boat_type == "motor" or boat_type == "private":
         speed = np.minimum(speed, graph.ep['vel_max'].a/3.6)
-    elif type == "taxi":
+    elif boat_type == "taxi":
         speed = np.minimum(speed, graph.ep['vel_max_mp'].a/3.6)
     else:
         speed = np.minimum(speed, graph.ep['vel_max'].a/3.6)
@@ -309,7 +315,7 @@ def get_weight_motorboat(graph, speed=5/3.6, start_time=None, type="private", bo
 
     return weight
 
-def get_weight_vvf(graph, speed=5/3.6, start_time=None, type="vvf", boat_width=0, boat_height=0, 
+def get_weight_vvf(graph, speed=5/3.6, start_time=None, boat_type="vvf", boat_width=0, boat_height=0, 
                          rio_blu_multiplier=1e6, rio_multiplier=1e6, dimension_multiplier=1e6, tide_level=None, nan_replacement=1e9):
     """Returns a graph edge property that can be used in searching the shortest path in a water graph.
     Weights correspond to the time of each edge (length/speed).
@@ -322,12 +328,8 @@ def get_weight_vvf(graph, speed=5/3.6, start_time=None, type="vvf", boat_width=0
     weight = get_weight_length(graph)
 
     # speed limits
-    if type == "private":
-        speed = np.minimum(speed, graph.ep['vel_max'].a/3.6)
-    elif type == "taxi":
-        speed = np.minimum(speed, graph.ep['vel_max_mp'].a/3.6)
-    else:
-        speed = np.minimum(speed, graph.ep['vel_max'].a/3.6)
+    speed = np.minimum(speed, (graph.ep['vel_max'].a + 20)/3.6)
+    speed = np.minimum(speed, (graph.ep['vel_max'].a + 0)/3.6)
 
     weight.a /= speed
 

@@ -328,8 +328,16 @@ def get_weight_vvf(graph, speed=5/3.6, start_time=None, boat_type="vvf", boat_wi
     weight = get_weight_length(graph)
 
     # speed limits
-    speed = np.minimum(speed, (graph.ep['vel_max'].a + 20)/3.6)
-    speed = np.minimum(speed, (graph.ep['vel_max'].a + 0)/3.6)
+    # speed = np.minimum(speed, (graph.ep['vel_max'].a + 20)/3.6)
+    # speed = np.minimum(speed, (graph.ep['vel_max'].a + 0)/3.6)
+    vel_max = graph.ep['vel_max']
+    # Vigili del fuoco
+    name = graph.ep['nome'] # per le stringhe
+    # # loop per cercare gli archi che hanno come nome 
+    for e in find_edge(graph, name, 'GRANDE'):
+        vel_max[e] = 60
+    
+    speed = vel_max.a/3.6
 
     weight.a /= speed
 
@@ -342,11 +350,7 @@ def get_weight_vvf(graph, speed=5/3.6, start_time=None, boat_type="vvf", boat_wi
     # exclude low canals (big multiplier to avoid problem if the path starts from there)
     weight.a[graph.ep['altezza'].a < boat_height] += dimension_multiplier
     
-    # Vigili del fuoco
-    name = graph.ep['nome'] # per le stringhe
-    # # loop per cercare gli archi che hanno come nome 
-    # for e in find_edge(graph, name, 'GRANDE'):
-    #     weight[e] = 0
+    
 
     # anche loop piu facile se serve
     canali_vvf = [
@@ -354,7 +358,7 @@ def get_weight_vvf(graph, speed=5/3.6, start_time=None, boat_type="vvf", boat_wi
         "DE LA GIUDECCA", 
         "DE SAN MARCO",
         "DE SAN GIORGIO",
-        "DE CANNARAGIO",
+        "DE CANNAREGIO",
         "DE NOAL - CANALE DE LA MISERICORDIA",
         "NOVO",
         "DE CA' FOSCARI"

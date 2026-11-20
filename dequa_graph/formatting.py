@@ -474,10 +474,15 @@ def retrieve_info_from_path_water(graph, paths_vertices, paths_edges, start_time
             time_at_edge = intermediate_start_time
 
             for e, e_time in zip(edges, edge_times):
-                if graph.ep['vel_max'][e] == 0:
-                    edge_speed = boat_speed
+                if 'vel_sos' in graph.ep and boat_type == 'vvf':
+                    edge_speed = graph.ep['vel_sos'][e]/3.6
+                    max_speed = graph.ep['vel_sos'][e]
                 else:
-                    edge_speed = min(boat_speed, graph.ep['vel_max'][e]/3.6)
+                    if graph.ep['vel_max'][e] == 0:
+                        edge_speed = boat_speed
+                    else:
+                        edge_speed = min(boat_speed, graph.ep['vel_max'][e]/3.6)
+                    max_speed = graph.ep['vel_max'][e]
                 distance = graph.ep['length'][e]
                 duration = distance / edge_speed
                 time_at_edge += timedelta(seconds=duration)
@@ -490,7 +495,7 @@ def retrieve_info_from_path_water(graph, paths_vertices, paths_edges, start_time
 
                 edge_info = {
                     'edge_type': edge_type,
-                    'max_speed': graph.ep['vel_max'][e],
+                    'max_speed': max_speed,
                     # append name
                     'name': graph.ep['nome'][e],
                     # append starting hour

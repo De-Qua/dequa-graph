@@ -330,12 +330,16 @@ def get_weight_vvf(graph, speed=5/3.6, start_time=None, boat_type="vvf", boat_wi
     # speed limits
     # speed = np.minimum(speed, (graph.ep['vel_max'].a + 20)/3.6)
     # speed = np.minimum(speed, (graph.ep['vel_max'].a + 0)/3.6)
-    vel_max = graph.ep['vel_max']
-    # Vigili del fuoco
     name = graph.ep['nome'] # per le stringhe
-    # # loop per cercare gli archi che hanno come nome 
-    for e in find_edge(graph, name, 'GRANDE'):
-        vel_max[e] = 60
+    
+    if 'vel_sos' in graph.ep:
+        vel_max = graph.ep['vel_sos']
+    else:
+        vel_max = graph.ep['vel_max']
+        # Vigili del fuoco
+        # # loop per cercare gli archi che hanno come nome 
+        for e in find_edge(graph, name, 'GRANDE'):
+            vel_max[e] = 60
     
     speed = vel_max.a/3.6
 
@@ -350,22 +354,25 @@ def get_weight_vvf(graph, speed=5/3.6, start_time=None, boat_type="vvf", boat_wi
     # exclude low canals (big multiplier to avoid problem if the path starts from there)
     weight.a[graph.ep['altezza'].a < boat_height] += dimension_multiplier
     
-    
-
-    # anche loop piu facile se serve
-    canali_vvf = [
-        "GRANDE", 
-        "DE LA GIUDECCA", 
-        "DE SAN MARCO",
-        "DE SAN GIORGIO",
-        "DE CANNAREGIO",
-        "DE NOAL - CANALE DE LA MISERICORDIA",
-        "NOVO",
-        "DE CA' FOSCARI"
-        ]
-    for e in graph.edges():
-        if name[e] not in canali_vvf:
-            weight[e] *= rio_multiplier
+    if 'can_princ' in graph.ep:
+        # secondo me non serve nulla
+        # weight.a += graph.ep['can_princ'].a * rio_multiplier # questo è sbagliato!
+        pass
+    else:
+        # anche loop piu facile se serve
+        canali_vvf = [
+            "GRANDE", 
+            "DE LA GIUDECCA", 
+            "DE SAN MARCO",
+            "DE SAN GIORGIO",
+            "DE CANNAREGIO",
+            "DE NOAL - CANALE DE LA MISERICORDIA",
+            "NOVO",
+            "DE CA' FOSCARI"
+            ]
+        for e in graph.edges():
+            if name[e] not in canali_vvf:
+                weight[e] *= rio_multiplier
 
     weight.a[np.isnan(weight.a)] = nan_replacement
 
